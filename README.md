@@ -75,7 +75,7 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    env_file: .
+    env_file: .env
 ```
 
 ### Using Docker Run

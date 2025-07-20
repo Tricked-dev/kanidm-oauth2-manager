@@ -69,11 +69,15 @@
 				return;
 			}
 
-			canvas.width = Math.round(width);
-			canvas.height = Math.round(height);
+			// Determine target size: scale down if larger than 1024px
+			let targetSize = Math.min(Math.round(width), Math.round(height), 1024);
+			
+			canvas.width = targetSize;
+			canvas.height = targetSize;
 
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+			// Draw the cropped and potentially scaled image
 			ctx.drawImage(
 				img,
 				Math.round(x),
@@ -82,27 +86,55 @@
 				Math.round(height),
 				0,
 				0,
-				canvas.width,
-				canvas.height
+				targetSize,
+				targetSize
 			);
 
-			try {
-				const blob: Blob = await new Promise((resolve, reject) => {
+			// Create initial blob
+			let blob: Blob = await new Promise((resolve, reject) => {
+				canvas.toBlob((result) => {
+					if (result) {
+						resolve(result);
+					} else {
+						reject(new Error('Canvas toBlob returned null'));
+					}
+				}, 'image/webp', 0.9);
+			});
+
+			// If still over 256KB and we haven't tried 512px yet, resize to 512px
+			if (blob.size > 256 * 1024 && targetSize > 512) {
+				targetSize = 512;
+				canvas.width = targetSize;
+				canvas.height = targetSize;
+				
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				
+				ctx.drawImage(
+					img,
+					Math.round(x),
+					Math.round(y),
+					Math.round(width),
+					Math.round(height),
+					0,
+					0,
+					targetSize,
+					targetSize
+				);
+
+				blob = await new Promise((resolve, reject) => {
 					canvas.toBlob((result) => {
 						if (result) {
 							resolve(result);
 						} else {
 							reject(new Error('Canvas toBlob returned null'));
 						}
-					}, 'image/webp');
+					}, 'image/webp', 0.9);
 				});
-
-				const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
-				await uploadImage(imageModal.appName, file);
-			} catch (blobError: any) {
-				console.error('Blob creation error:', blobError);
-				addNotification('error', `Failed to create image blob: ${blobError.message}`);
 			}
+
+			const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
+			addNotification('info', `Image processed: ${targetSize}x${targetSize}px, ${Math.round(blob.size / 1024)}KB`);
+			await uploadImage(imageModal.appName, file);
 		} catch (error: any) {
 			console.error('Error cropping image:', error);
 			addNotification('error', `Failed to crop image: ${error.message}`);

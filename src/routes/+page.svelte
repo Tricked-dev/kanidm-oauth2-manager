@@ -11,7 +11,7 @@
 
 	let editingApps = $state<Record<string, boolean>>({});
 	let editValues = $state<
-		Record<string, { displayName: string; origin: string; redirectUrls: string }>
+		Record<string, { displayName: string; origin: string; redirectUrls: string; secureCrypto: boolean; requirePKCE: boolean }>
 	>({});
 	let notifications = $state<
 		Array<{ id: string; type: 'success' | 'error' | 'info'; message: string; timeout?: number }>
@@ -201,7 +201,9 @@
 					app?.attrs?.oauth2_rs_origin
 						?.map((url) => url.trim())
 						?.filter((url) => url.length > 0)
-						?.join('\n') || ''
+						?.join('\n') || '',
+				secureCrypto: app?.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] !== 'true',
+				requirePKCE: app?.attrs?.oauth2_allow_insecure_client_disable_pkce?.[0] !== 'true'
 			};
 		}
 	}
@@ -222,7 +224,9 @@
 				attrs: {
 					displayName: [values.displayName.trim()],
 					oauth2_rs_origin_landing: [values.origin.trim()],
-					oauth2_rs_origin: redirectUrls
+					oauth2_rs_origin: redirectUrls,
+					oauth2_jwt_legacy_crypto_enable: [values.secureCrypto ? 'false' : 'true'],
+					oauth2_allow_insecure_client_disable_pkce: [values.requirePKCE ? 'false' : 'true']
 				}
 			}
 		});
@@ -470,6 +474,40 @@
 										bind:value={editValues[appName].redirectUrls}
 									></textarea>
 								</div>
+
+								<div class="form-control">
+									<label class="label cursor-pointer justify-start gap-3" for="crypto-{appName}">
+										<input
+											id="crypto-{appName}"
+											type="checkbox"
+											class="toggle {editValues[appName].secureCrypto ? 'toggle-success' : 'toggle-warning'}"
+											bind:checked={editValues[appName].secureCrypto}
+										/>
+										<div>
+											<span class="label-text font-medium">Secure Crypto</span>
+											<div class="label-text-alt">
+												{editValues[appName].secureCrypto ? 'Modern cryptographic algorithms (recommended)' : 'Legacy crypto enabled (less secure)'}
+											</div>
+										</div>
+									</label>
+								</div>
+
+								<div class="form-control">
+									<label class="label cursor-pointer justify-start gap-3" for="pkce-{appName}">
+										<input
+											id="pkce-{appName}"
+											type="checkbox"
+											class="toggle {editValues[appName].requirePKCE ? 'toggle-success' : 'toggle-warning'}"
+											bind:checked={editValues[appName].requirePKCE}
+										/>
+										<div>
+											<span class="label-text font-medium">Require PKCE</span>
+											<div class="label-text-alt">
+												{editValues[appName].requirePKCE ? 'PKCE required for all clients (recommended)' : 'Allow insecure clients to disable PKCE (less secure)'}
+											</div>
+										</div>
+									</label>
+								</div>
 							</div>
 						{:else}
 							<div class="space-y-4">
@@ -587,9 +625,23 @@
 										</div>
 									</div>
 									<div class="bg-base-100 rounded-lg p-3">
-										<div class="text-base-content/70 mb-1 text-xs font-medium">UUID</div>
-										<code class="text-xs break-all">{app.attrs?.uuid[0]}</code>
+										<div class="text-base-content/70 mb-1 text-xs font-medium">PKCE Required</div>
+										<div
+											class="badge badge-sm {app.attrs?.oauth2_allow_insecure_client_disable_pkce?.[0] ===
+											'true'
+												? 'badge-warning'
+												: 'badge-success'}"
+										>
+											{app.attrs?.oauth2_allow_insecure_client_disable_pkce?.[0] === 'true'
+												? 'No'
+												: 'Yes'}
+										</div>
 									</div>
+								</div>
+
+								<div class="bg-base-100 rounded-lg p-4">
+									<div class="text-base-content/70 mb-1 text-sm font-medium">UUID</div>
+									<code class="text-sm break-all">{app.attrs?.uuid[0]}</code>
 								</div>
 							</div>
 						{/if}
