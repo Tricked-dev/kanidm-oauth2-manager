@@ -7,7 +7,7 @@
 	import ImageModal from '$lib/modals/ImageModal.svelte';
 	import DeleteModal from '$lib/modals/DeleteModal.svelte';
 
-	const { data } = $props();
+	const { data,  } = $props();
 
 	let editingApps = $state<Record<string, boolean>>({});
 	let editValues = $state<
@@ -310,6 +310,7 @@
 <div class="container mx-auto px-4 py-8">
 	<div class="mb-8 flex items-center justify-between">
 		<h1 class="text-3xl font-bold">OAuth2 Applications</h1>
+		<a href={data.home} class="link link-primary mr-auto ml-3">Back to Kanidm</a>
 		<button class="btn btn-primary" onclick={() => (showCreateForm = !showCreateForm)}>
 			{showCreateForm ? 'Cancel' : 'Create Application'}
 		</button>
