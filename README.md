@@ -1,5 +1,8 @@
 # Kanidm OAuth2 Manager
 
+<img width="1554" height="1312" alt="image" src="https://github.com/user-attachments/assets/4f3b4943-9900-46ad-9ded-07e99b32793b" />
+
+
 A web-based management interface for Kanidm OAuth2 applications. This SvelteKit
 application provides an intuitive interface to view and manage OAuth2
 applications configured in your Kanidm identity management system.
@@ -85,7 +88,7 @@ docker run -d \
   -e KANIDM_BASE_URL=https://your-kanidm-instance.example.com \
   -e KANIDM_USERNAME=idm_admin \
   -e KANIDM_PASSWORD=your_admin_password \
-  ghcr.io/tricked-dev/kanidm-oauth2-manager:sha-25efdf7
+  ghcr.io/tricked-dev/kanidm-oauth2-manager:latest
 ```
 
 ## Development Setup
