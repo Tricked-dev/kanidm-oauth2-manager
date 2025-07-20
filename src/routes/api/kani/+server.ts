@@ -1,63 +1,18 @@
 import type { RequestHandler } from "@sveltejs/kit";
-import { KANIDM_BASE_URL, KANIDM_USERNAME, KANIDM_PASSWORD } from "$env/static/private";
+import { KANIDM_BASE_URL } from "$env/static/private";
+import { getCachedToken } from "$lib/auth";
 
-const BASE_URL = `${KANIDM_BASE_URL}/v1/auth`;
 const API_BASE_URL = KANIDM_BASE_URL;
-const HEADERS = {
-    "content-type": "application/json",
-};
 
-async function postAuthStep(
-    step: Record<string, any>,
-    sessionId?: string,
-): Promise<Response> {
-    const headers: Record<string, string> = { ...HEADERS };
-    if (sessionId) {
-        headers["x-kanidm-auth-session-id"] = sessionId;
-    }
-
-    return await fetch(BASE_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ step }),
-    });
-}
-
-async function login(
-    username: string,
-    password: string,
-): Promise<
-    { sessionid: string; state: { success: string }; sessionId: string }
-> {
-    // Step 1: Initialize session
-    const initRes = await postAuthStep({ init: username });
-    const sessionId = initRes.headers.get("x-kanidm-auth-session-id");
-    if (!sessionId) throw new Error("Session ID missing");
-
-    // Step 2: Begin password auth method
-    await postAuthStep({ begin: "password" }, sessionId);
-
-    // Step 3: Submit credentials
-    const authRes = await postAuthStep(
-        { cred: { password } },
-        sessionId,
-    );
-
-    const authJson = await authRes.json();
-    return { ...authJson, sessionJwt: sessionId };
-}
 
 export const POST: RequestHandler = async ({ request }) => {
-    const session = await login(
-        KANIDM_USERNAME,
-        KANIDM_PASSWORD,
-    );
+    const token = await getCachedToken();
     
     const contentType = request.headers.get('content-type') ?? '';
     let data: any;
     let requestBody: string | FormData | Uint8Array | undefined;
     let requestHeaders: Record<string, string> = {
-        "Authorization": `Bearer ${session.state.success}`,
+        "Authorization": `Bearer ${token}`,
     };
     
     if (contentType.includes('multipart/form-data')) {
@@ -133,3 +88,4 @@ export const POST: RequestHandler = async ({ request }) => {
         },
     });
 };
+

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { kaniRequest } from '../utils';
 
 	const { data } = $props();
@@ -362,6 +363,12 @@
 			addNotification('error', errorMessage);
 		}
 	}
+
+    onMount(() => {
+        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+        if(!link)return;
+        link.href = "/favicon.png"
+    })
 </script>
 
 <!-- Notification Toast Container -->

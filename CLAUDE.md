@@ -14,6 +14,8 @@ their configuration attributes and allows updating display names.
 WE USE BUN USE BUN FOR ALL PACKAGE MANAGER RELATED COMMANDS
 
 - `bun run dev` - Start development server with hot reload
+- `bun run check`
+- `bun run build`
 
 ## Architecture
 
