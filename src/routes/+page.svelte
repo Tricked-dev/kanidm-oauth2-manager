@@ -49,11 +49,83 @@
 		type: 'basic' as 'basic' | 'public'
 	});
 
-	let crop = { x: 0, y: 0 };
-	let zoom = 1;
+	let crop = $state({ x: 0, y: 0 });
+	let zoom = $state(1);
 
-    async function handleCropComplete() {
-        // use the crop and zoom variables to determine what area the user selected
+    async function handleCropComplete(croppedAreaPixels) {
+        imageModal.croppedAreaPixels = croppedAreaPixels;
+    }
+
+    async function cropAndUpload() {
+        if (!imageModal.file || !imageModal.imageSrc || !imageModal.croppedAreaPixels) {
+            addNotification('error', 'Missing image or crop data');
+            return;
+        }
+
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+                addNotification('error', 'Canvas context not available');
+                return;
+            }
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = (e) => {
+                    console.error('Image load error:', e);
+                    reject(e);
+                };
+                img.src = imageModal.imageSrc!;
+            });
+
+            const { x, y, width, height } = imageModal.croppedAreaPixels;
+            
+            // Ensure canvas dimensions are valid
+            if (width <= 0 || height <= 0) {
+                addNotification('error', 'Invalid crop dimensions');
+                return;
+            }
+
+            canvas.width = Math.round(width);
+            canvas.height = Math.round(height);
+
+            // Clear canvas and draw the cropped portion
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(
+                img, 
+                Math.round(x), Math.round(y), Math.round(width), Math.round(height),
+                0, 0, canvas.width, canvas.height
+            );
+
+            // Convert to blob with better error handling
+            try {
+                const blob = await new Promise((resolve, reject) => {
+                    canvas.toBlob((result) => {
+                        if (result) {
+                            resolve(result);
+                        } else {
+                            reject(new Error('Canvas toBlob returned null'));
+                        }
+                    }, 'image/png');
+                });
+
+                console.log('Created blob:', blob.size, 'bytes');
+                const file = new File([blob], 'cropped-image.png', { type: 'image/png' });
+                await uploadImage(imageModal.appName, file);
+            } catch (blobError) {
+                console.error('Blob creation error:', blobError);
+                addNotification('error', `Failed to create image blob: ${blobError.message}`);
+            }
+
+        } catch (error) {
+            console.error('Error cropping image:', error);
+            addNotification('error', `Failed to crop image: ${error.message}`);
+        }
     }
 
 	function addNotification(type: 'success' | 'error' | 'info', message: string, timeout = 5000) {
@@ -145,9 +217,9 @@
 
 	function validateImageFile(file: File): string | null {
 		// Check file size (256KB = 256 * 1024 bytes)
-		if (file.size > 256 * 1024) {
-			return 'Image must be less than 256 KB';
-		}
+		// if (file.size > 256 * 1024) {
+		// 	return 'Image must be less than 256 KB';
+		// }
 
 		// Check file type
 		const allowedTypes = [
@@ -898,7 +970,9 @@
 				<div class="py-4">
 					<p class="mb-4">Crop your image to make it square (1:1 aspect ratio):</p>
 					{#if imageModal.imageSrc}
-						<Cropper image={imageModal.imageSrc} oncropcomplete={handleCropComplete} />
+						<div class="relative h-96 w-full">
+							<Cropper image={imageModal.imageSrc} bind:crop bind:zoom oncropcomplete={handleCropComplete} aspect={1} />
+						</div>
 						<div class="alert alert-info mt-4">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -946,7 +1020,7 @@
 						Delete Image
 					</button>
 				{:else if imageModal.mode === 'crop'}
-					<button class="btn btn-primary"> Crop & Upload </button>
+					<button class="btn btn-primary" onclick={() => cropAndUpload()} disabled={!imageModal.croppedAreaPixels}> Crop & Upload </button>
 				{/if}
 			</div>
 		</div>
