@@ -56,22 +56,26 @@ async function login(
 
 export async function getCachedToken(): Promise<string> {
     const now = Date.now();
-    
+
     // Check if we have a valid cached token
     if (tokenCache && tokenCache.expires > now) {
-        console.log("Using cached token");
+        if (import.meta.env.DEV) {
+            console.log("Using cached token");
+        }
         return tokenCache.token;
     }
-    
+
     // Token is expired or doesn't exist, get a new one
-    console.log("Fetching new token");
+    if (import.meta.env.DEV) {
+        console.log("Fetching new token");
+    }
     const session = await login(env.KANIDM_USERNAME, env.KANIDM_PASSWORD);
-    
+
     // Cache the new token
     tokenCache = {
         token: session.state.success,
-        expires: now + TOKEN_CACHE_DURATION
+        expires: now + TOKEN_CACHE_DURATION,
     };
-    
+
     return tokenCache.token;
 }

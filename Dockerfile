@@ -15,6 +15,7 @@ FROM docker.io/oven/bun:latest AS run
 ENV NODE_ENV=production
 
 WORKDIR /app
+
 COPY --from=build /app/build ./build
 COPY --from=build /app/package.json ./package.json
 RUN ulimit -c unlimited

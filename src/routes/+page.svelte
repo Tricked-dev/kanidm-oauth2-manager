@@ -52,8 +52,7 @@
 	let crop = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
 
-	async function handleCropComplete(croppedArea) {
-		console.log('handleCropComplete called with:', { croppedArea });
+	async function handleCropComplete(croppedArea: any) {
 		imageModal.croppedAreaPixels = croppedArea.pixels;
 	}
 
@@ -86,9 +85,6 @@
 
 			const { x, y, width, height } = imageModal.croppedAreaPixels;
 
-			console.log('Crop area:', { x, y, width, height });
-			console.log('Image dimensions:', { width: img.naturalWidth, height: img.naturalHeight });
-
 			// Ensure canvas dimensions are valid
 			if (width <= 0 || height <= 0) {
 				addNotification('error', 'Invalid crop dimensions');
@@ -104,8 +100,6 @@
 			canvas.width = Math.round(width);
 			canvas.height = Math.round(height);
 
-			console.log('Canvas dimensions:', { width: canvas.width, height: canvas.height });
-
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 			ctx.drawImage(
@@ -120,11 +114,6 @@
 				canvas.height
 			);
 
-			console.log(
-				'Canvas data after drawing:',
-				ctx.getImageData(0, 0, Math.min(10, canvas.width), Math.min(10, canvas.height))
-			);
-
 			try {
 				const blob: Blob = await new Promise((resolve, reject) => {
 					canvas.toBlob((result) => {
@@ -136,7 +125,6 @@
 					}, 'image/webp');
 				});
 
-				console.log('Created blob:', blob.size, 'bytes');
 				const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
 				await uploadImage(imageModal.appName, file);
 			} catch (blobError: any) {
@@ -297,7 +285,6 @@
 		try {
 			// Create FormData for multipart upload
 			const formData = new FormData();
-			console.log(file.type);
 			formData.append('image', file);
 
 			const response = await kaniRequest(fetch, {
@@ -339,6 +326,25 @@
 				errorMessage = response.body;
 			}
 			addNotification('error', errorMessage);
+		}
+	}
+
+	async function copySecret(appName: string) {
+		try {
+			const result = await kaniRequest<string>(fetch, {
+				path: `v1/oauth2/${appName}/_basic_secret`,
+				method: 'GET'
+			});
+
+			if (result.status === 200 && result.body) {
+				await navigator.clipboard.writeText(result.body);
+				addNotification('success', `Secret copied to clipboard for ${appName}`);
+			} else {
+				addNotification('error', 'Failed to fetch secret');
+			}
+		} catch (error) {
+			console.error(error);
+			addNotification('error', 'Failed to copy secret to clipboard');
 		}
 	}
 
@@ -814,6 +820,9 @@
 								Save Changes
 							</button>
 						{:else}
+							<button class="btn btn-secondary" onclick={() => copySecret(appName)}>
+								Copy Secret
+							</button>
 							<button class="btn btn-primary" onclick={() => toggleEditMode(appName)}>
 								Edit
 							</button>
@@ -1030,7 +1039,7 @@
 						<div class="border-base-300 h-32 w-32 overflow-hidden rounded-lg border">
 							{#if app?.attrs?.image?.length}
 								<img
-									src="data:image/png;base64,{app.attrs.image[0]}"
+									src="/api/kani/image/{imageModal.appName}"
 									alt="Current application logo"
 									class="h-full w-full object-cover"
 								/>

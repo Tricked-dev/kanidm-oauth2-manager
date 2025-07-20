@@ -45,9 +45,9 @@ export const POST: RequestHandler = async ({ request }) => {
             requestHeaders["content-type"] = "application/json";
         }
     }
-
-    console.log("fetching path:", `${env.API_BASE_URL}/${data.path}`);
-
+    if (import.meta.env.DEV) {
+        console.log("fetching path:", `${env.API_BASE_URL}/${data.path}`);
+    }
     const result = await fetch(
         `${env.KANIDM_BASE_URL}/${data.path}`,
         {
@@ -58,11 +58,13 @@ export const POST: RequestHandler = async ({ request }) => {
     );
 
     if (!result.ok) {
-        console.log("Request failed:", result.status, result.statusText);
-        if (requestBody instanceof FormData) {
-            console.log("FormData keys:", Array.from(requestBody.keys()));
-        } else {
-            console.log("BODY:", data.body);
+        if (import.meta.env.DEV) {
+            console.log("Request failed:", result.status, result.statusText);
+            if (requestBody instanceof FormData) {
+                console.log("FormData keys:", Array.from(requestBody.keys()));
+            } else {
+                console.log("BODY:", data.body);
+            }
         }
     }
 
@@ -76,9 +78,11 @@ export const POST: RequestHandler = async ({ request }) => {
     } else {
         res = { status: result.status, body: await result.json() };
     }
+    if (import.meta.env.DEV) {
+        console.log(res);
+        console.log(JSON.stringify(res));
+    }
 
-    console.log(res);
-    console.log(JSON.stringify(res));
     return Response.json(res, {
         headers: {
             "content-type": ct,
