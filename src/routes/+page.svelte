@@ -338,6 +338,53 @@
 		}
 	}
 
+	async function fetchFavicon(appName: string) {
+		const app = data.apps.body.find((a: any) => a.attrs?.name[0] === appName);
+		const origin = app?.attrs?.oauth2_rs_origin_landing?.[0];
+		
+		if (!origin) {
+			addNotification('error', 'No homepage URL configured for this application');
+			return;
+		}
+
+		try {
+			const baseUrl = new URL(origin).origin;
+			addNotification('info', `Fetching favicon from ${baseUrl}...`);
+
+			// Use server-side API to fetch favicon (avoids CORS issues)
+			const response = await fetch('/api/fetch-icon', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ origin: baseUrl })
+			});
+
+			if (response.ok) {
+				const contentType = response.headers.get('content-type');
+				const blob = await response.blob();
+				
+				if (contentType && contentType.startsWith('image/')) {
+					// Create a File object with appropriate extension
+					const extension = contentType.split('/')[1] || 'png';
+					const file = new File([blob], `favicon.${extension}`, { type: contentType });
+					
+					// Upload the image
+					await uploadImage(appName, file);
+				} else {
+					addNotification('error', 'Retrieved content is not a valid image');
+				}
+			} else {
+				const errorData = await response.json().catch(() => ({}));
+				const errorMessage = errorData.error || 'Failed to fetch favicon from server';
+				addNotification('error', errorMessage);
+			}
+		} catch (error) {
+			console.error('Error fetching favicon:', error);
+			addNotification('error', 'Network error while fetching favicon');
+		}
+	}
+
 	async function copySecret(appName: string) {
 		try {
 			const result = await kaniRequest<string>(fetch, {
@@ -745,6 +792,13 @@
 												onclick={() => openImageModal(appName, 'upload')}
 											>
 												{app.attrs?.image?.length ? 'Update' : 'Upload'}
+											</button>
+											<button
+												class="btn btn-sm btn-secondary"
+												onclick={() => fetchFavicon(appName)}
+												disabled={!app.attrs?.oauth2_rs_origin_landing?.[0]}
+											>
+												Fetch Icon
 											</button>
 											{#if app.attrs?.image?.length}
 												<button
