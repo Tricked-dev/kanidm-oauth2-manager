@@ -52,100 +52,102 @@
 	let crop = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
 
-    async function handleCropComplete(croppedArea) {
-        console.log('handleCropComplete called with:', { croppedArea });
-        imageModal.croppedAreaPixels = croppedArea.pixels;
-    }
+	async function handleCropComplete(croppedArea) {
+		console.log('handleCropComplete called with:', { croppedArea });
+		imageModal.croppedAreaPixels = croppedArea.pixels;
+	}
 
-    async function cropAndUpload() {
-        if (!imageModal.file || !imageModal.imageSrc || !imageModal.croppedAreaPixels) {
-            addNotification('error', 'Missing image or crop data');
-            return;
-        }
+	async function cropAndUpload() {
+		if (!imageModal.file || !imageModal.imageSrc || !imageModal.croppedAreaPixels) {
+			addNotification('error', 'Missing image or crop data');
+			return;
+		}
 
-        try {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            if (!ctx) {
-                addNotification('error', 'Canvas context not available');
-                return;
-            }
+		try {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
 
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
+			if (!ctx) {
+				addNotification('error', 'Canvas context not available');
+				return;
+			}
 
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = (e) => {
-                    console.error('Image load error:', e);
-                    reject(e);
-                };
-                img.src = imageModal.imageSrc!;
-            });
+			const img = new Image();
+			img.crossOrigin = 'anonymous';
 
-            const { x, y, width, height } = imageModal.croppedAreaPixels;
-            
-            console.log('Crop area:', { x, y, width, height });
-            console.log('Image dimensions:', { width: img.naturalWidth, height: img.naturalHeight });
-            
-            // Ensure canvas dimensions are valid
-            if (width <= 0 || height <= 0) {
-                addNotification('error', 'Invalid crop dimensions');
-                return;
-            }
+			await new Promise((resolve, reject) => {
+				img.onload = resolve;
+				img.onerror = (e) => {
+					console.error('Image load error:', e);
+					reject(e);
+				};
+				img.src = imageModal.imageSrc!;
+			});
 
-            // Ensure crop area is within image bounds
-            if (x < 0 || y < 0 || x + width > img.naturalWidth || y + height > img.naturalHeight) {
-                addNotification('error', 'Crop area exceeds image bounds');
-                return;
-            }
+			const { x, y, width, height } = imageModal.croppedAreaPixels;
 
-            canvas.width = Math.round(width);
-            canvas.height = Math.round(height);
+			console.log('Crop area:', { x, y, width, height });
+			console.log('Image dimensions:', { width: img.naturalWidth, height: img.naturalHeight });
 
-            console.log('Canvas dimensions:', { width: canvas.width, height: canvas.height });
+			// Ensure canvas dimensions are valid
+			if (width <= 0 || height <= 0) {
+				addNotification('error', 'Invalid crop dimensions');
+				return;
+			}
 
-            // Clear canvas and draw the cropped portion
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Test if we can draw anything to canvas first
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(0, 0, 10, 10);
-            
-            ctx.drawImage(
-                img, 
-                Math.round(x), Math.round(y), Math.round(width), Math.round(height),
-                0, 0, canvas.width, canvas.height
-            );
-            
-            console.log('Canvas data after drawing:', ctx.getImageData(0, 0, Math.min(10, canvas.width), Math.min(10, canvas.height)));
+			// Ensure crop area is within image bounds
+			if (x < 0 || y < 0 || x + width > img.naturalWidth || y + height > img.naturalHeight) {
+				addNotification('error', 'Crop area exceeds image bounds');
+				return;
+			}
 
-            // Convert to blob with better error handling
-            try {
-                const blob:Blob = await new Promise((resolve, reject) => {
-                    canvas.toBlob((result) => {
-                        if (result) {
-                            resolve(result);
-                        } else {
-                            reject(new Error('Canvas toBlob returned null'));
-                        }
-                    }, 'image/webp');
-                });
+			canvas.width = Math.round(width);
+			canvas.height = Math.round(height);
 
-                console.log('Created blob:', blob.size, 'bytes');
-                const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
-                await uploadImage(imageModal.appName, file);
-            } catch (blobError:any) {
-                console.error('Blob creation error:', blobError);
-                addNotification('error', `Failed to create image blob: ${blobError.message}`);
-            }
+			console.log('Canvas dimensions:', { width: canvas.width, height: canvas.height });
 
-        } catch (error:any) {
-            console.error('Error cropping image:', error);
-            addNotification('error', `Failed to crop image: ${error.message}`);
-        }
-    }
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+			ctx.drawImage(
+				img,
+				Math.round(x),
+				Math.round(y),
+				Math.round(width),
+				Math.round(height),
+				0,
+				0,
+				canvas.width,
+				canvas.height
+			);
+
+			console.log(
+				'Canvas data after drawing:',
+				ctx.getImageData(0, 0, Math.min(10, canvas.width), Math.min(10, canvas.height))
+			);
+
+			try {
+				const blob: Blob = await new Promise((resolve, reject) => {
+					canvas.toBlob((result) => {
+						if (result) {
+							resolve(result);
+						} else {
+							reject(new Error('Canvas toBlob returned null'));
+						}
+					}, 'image/webp');
+				});
+
+				console.log('Created blob:', blob.size, 'bytes');
+				const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
+				await uploadImage(imageModal.appName, file);
+			} catch (blobError: any) {
+				console.error('Blob creation error:', blobError);
+				addNotification('error', `Failed to create image blob: ${blobError.message}`);
+			}
+		} catch (error: any) {
+			console.error('Error cropping image:', error);
+			addNotification('error', `Failed to crop image: ${error.message}`);
+		}
+	}
 
 	function addNotification(type: 'success' | 'error' | 'info', message: string, timeout = 5000) {
 		const id = Math.random().toString(36).substr(2, 9);
@@ -990,7 +992,13 @@
 					<p class="mb-4">Crop your image to make it square (1:1 aspect ratio):</p>
 					{#if imageModal.imageSrc}
 						<div class="relative h-96 w-full">
-							<Cropper image={imageModal.imageSrc} bind:crop bind:zoom oncropcomplete={handleCropComplete} aspect={1} />
+							<Cropper
+								image={imageModal.imageSrc}
+								bind:crop
+								bind:zoom
+								oncropcomplete={handleCropComplete}
+								aspect={1}
+							/>
 						</div>
 						<div class="alert alert-info mt-4">
 							<svg
@@ -1039,7 +1047,13 @@
 						Delete Image
 					</button>
 				{:else if imageModal.mode === 'crop'}
-					<button class="btn btn-primary" onclick={() => cropAndUpload()} disabled={!imageModal.croppedAreaPixels}> Crop & Upload </button>
+					<button
+						class="btn btn-primary"
+						onclick={() => cropAndUpload()}
+						disabled={!imageModal.croppedAreaPixels}
+					>
+						Crop & Upload
+					</button>
 				{/if}
 			</div>
 		</div>

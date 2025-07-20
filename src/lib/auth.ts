@@ -1,6 +1,6 @@
-import { KANIDM_BASE_URL, KANIDM_USERNAME, KANIDM_PASSWORD } from "$env/static/private";
+import { env } from "$env/dynamic/private";
 
-const BASE_URL = `${KANIDM_BASE_URL}/v1/auth`;
+const BASE_URL = `${env.KANIDM_BASE_URL}/v1/auth`;
 const HEADERS = {
     "content-type": "application/json",
 };
@@ -65,7 +65,7 @@ export async function getCachedToken(): Promise<string> {
     
     // Token is expired or doesn't exist, get a new one
     console.log("Fetching new token");
-    const session = await login(KANIDM_USERNAME, KANIDM_PASSWORD);
+    const session = await login(env.KANIDM_USERNAME, env.KANIDM_PASSWORD);
     
     // Cache the new token
     tokenCache = {
