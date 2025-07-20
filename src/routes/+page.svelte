@@ -2,15 +2,18 @@
 	import { invalidate } from '$app/navigation';
 	import { kaniRequest } from '../utils';
 
-	const { data } = $props<{ data: any }>();
+	const { data } = $props();
 
 	let editingApps = $state<Record<string, boolean>>({});
-	let editValues = $state<Record<string, { displayName: string; redirectUrls: string }>>({});
+	let editValues = $state<
+		Record<string, { displayName: string; origin: string; redirectUrls: string; scopeMap: string }>
+	>({});
 	let showCreateForm = $state(false);
 	let createValues = $state({
 		name: '',
 		displayName: '',
-		redirectUrl: '',
+		origin: '',
+		redirectUrls: '',
 		type: 'basic' as 'basic' | 'public'
 	});
 
@@ -25,10 +28,16 @@
 			editingApps[appName] = true;
 			editValues[appName] = {
 				displayName: app?.attrs?.displayname?.[0] || '',
+				origin: app?.attrs?.oauth2_rs_origin_landing?.[0] || '',
 				redirectUrls:
 					app?.attrs?.oauth2_rs_origin
 						?.map((url) => url.trim())
 						?.filter((url) => url.length > 0)
+						?.join('\n') || '',
+				scopeMap:
+					app?.attrs?.oauth2_rs_scope_map
+						?.map((scope) => scope.trim())
+						?.filter((scope) => scope.length > 0)
 						?.join('\n') || ''
 			};
 		}
@@ -43,13 +52,20 @@
 			.map((url) => url.trim())
 			.filter((url) => url.length > 0 && url.startsWith('http'));
 
+		const scopeMapArray = values.scopeMap
+			.split('\n')
+			.map((scope) => scope.trim())
+			.filter((scope) => scope.length > 0);
+
 		const response = await kaniRequest(fetch, {
 			path: `v1/oauth2/${appName}`,
 			method: 'PATCH',
 			body: {
 				attrs: {
 					displayName: [values.displayName.trim()],
-					oauth2_rs_origin: redirectUrls
+					oauth2_rs_origin_landing: [values.origin.trim()],
+					oauth2_rs_origin: redirectUrls,
+					...(scopeMapArray.length > 0 ? { oauth2_rs_scope_map: scopeMapArray } : {})
 				}
 			}
 		});
@@ -62,18 +78,24 @@
 	}
 
 	async function createApplication() {
-		if (!createValues.name || !createValues.displayName || !createValues.redirectUrl) {
+		if (!createValues.name || !createValues.displayName || !createValues.origin) {
 			return;
 		}
+
+		const redirectUrls = createValues.redirectUrls
+			.split('\n')
+			.map((url) => url.trim())
+			.filter((url) => url.length > 0 && url.startsWith('http'));
 
 		const response = await kaniRequest(fetch, {
 			path: `v1/oauth2/_${createValues.type}`,
 			method: 'POST',
 			body: {
 				attrs: {
-					oauth2_rs_name: [createValues.name],
-					oauth2_rs_origin: [createValues.redirectUrl.trim()],
-					displayname: [createValues.displayName.trim()]
+					oauth2_rs_name: [createValues.name.trim()],
+					oauth2_rs_origin_landing: [createValues.origin.trim()],
+					displayname: [createValues.displayName.trim()],
+					oauth2_rs_origin: redirectUrls
 				}
 			}
 		});
@@ -83,7 +105,8 @@
 			createValues = {
 				name: '',
 				displayName: '',
-				redirectUrl: '',
+				origin: '',
+				redirectUrls: '',
 				type: 'basic'
 			};
 			await invalidate(() => true);
@@ -163,18 +186,31 @@
 				</div>
 
 				<div class="form-control">
-					<label class="label" for="create-redirect">
-						<span class="label-text font-medium">Redirect URL</span>
-						<span class="label-text-alt">Initial callback URL for OAuth2 flow</span>
+					<label class="label" for="create-origin">
+						<span class="label-text font-medium">Origin (Homepage)</span>
+						<span class="label-text-alt">Landing page URL - required for application</span>
 					</label>
 					<input
-						id="create-redirect"
+						id="create-origin"
 						type="url"
 						class="input input-bordered font-mono"
-						placeholder="https://example.com/oauth/callback"
-						bind:value={createValues.redirectUrl}
+						placeholder="https://example.com"
+						bind:value={createValues.origin}
 						required
 					/>
+				</div>
+
+				<div class="form-control">
+					<label class="label" for="create-redirects">
+						<span class="label-text font-medium">Redirect URLs</span>
+						<span class="label-text-alt">OAuth2 callback URLs, one per line</span>
+					</label>
+					<textarea
+						id="create-redirects"
+						class="textarea textarea-bordered h-24 font-mono text-sm"
+						placeholder="https://example.com/oauth/callback&#10;https://app.example.com/auth/callback"
+						bind:value={createValues.redirectUrls}
+					></textarea>
 				</div>
 
 				<div class="card-actions mt-6 justify-end">
@@ -182,7 +218,7 @@
 					<button
 						class="btn btn-primary"
 						onclick={() => createApplication()}
-						disabled={!createValues.name || !createValues.displayName || !createValues.redirectUrl}
+						disabled={!createValues.name || !createValues.displayName || !createValues.origin}
 					>
 						Create Application
 					</button>
@@ -195,7 +231,7 @@
 		{#each data.apps.body as app}
 			{@const appName = app.attrs?.name[0]}
 			{@const isEditing = editingApps[appName]}
-			<div class="card bg-base-300 flex h-[600px] w-full flex-col">
+			<div class="card bg-base-300 flex w-full flex-col">
 				<div class="card-body flex flex-1 flex-col">
 					<h2 class="card-title mb-4">
 						{#if isEditing}
@@ -232,7 +268,7 @@
 										bind:value={editValues[appName].origin}
 									/>
 								</div>
-								
+
 								<div class="form-control">
 									<label class="label" for="redirects-{appName}">
 										<span class="label-text font-medium">Redirect URLs (Optional)</span>
@@ -245,6 +281,18 @@
 										bind:value={editValues[appName].redirectUrls}
 									></textarea>
 								</div>
+
+								<div class="form-control">
+									<label class="label" for="scopemap-{appName}">
+										<span class="label-text font-medium">Scope Map (Optional)</span>
+										<span class="label-text-alt">One scope mapping per line</span>
+									</label>
+									<textarea
+										id="scopemap-{appName}"
+										class="textarea textarea-bordered h-24 font-mono text-sm"
+										bind:value={editValues[appName].scopeMap}
+									></textarea>
+								</div>
 							</div>
 						{:else}
 							<div class="space-y-4">
@@ -255,7 +303,9 @@
 
 								<div class="bg-base-100 rounded-lg p-4">
 									<div class="text-base-content/70 mb-1 text-sm font-medium">Origin (Homepage)</div>
-									<code class="block text-sm break-all">{app.attrs?.oauth2_rs_origin_landing?.[0] || 'Not set'}</code>
+									<code class="block text-sm break-all"
+										>{app.attrs?.oauth2_rs_origin_landing?.[0] || 'Not set'}</code
+									>
 								</div>
 
 								<div class="bg-base-100 rounded-lg p-4">
@@ -264,6 +314,19 @@
 										<div class="space-y-2">
 											{#each app.attrs.oauth2_rs_origin as url}
 												<code class="bg-base-200 block rounded p-2 text-xs break-all">{url}</code>
+											{/each}
+										</div>
+									{:else}
+										<div class="text-base-content/60 text-sm italic">None configured</div>
+									{/if}
+								</div>
+
+								<div class="bg-base-100 rounded-lg p-4">
+									<div class="text-base-content/70 mb-2 text-sm font-medium">Scope Map</div>
+									{#if app.attrs?.oauth2_rs_scope_map?.length}
+										<div class="space-y-2">
+											{#each app.attrs.oauth2_rs_scope_map as scope}
+												<code class="bg-base-200 block rounded p-2 text-xs break-all">{scope}</code>
 											{/each}
 										</div>
 									{:else}
@@ -286,16 +349,9 @@
 										</div>
 									</div>
 									<div class="bg-base-100 rounded-lg p-3">
-										<div class="text-base-content/70 mb-1 text-xs font-medium">Scope Map</div>
-										<div class="text-xs">
-											{app.attrs?.oauth2_rs_scope_map?.join(', ') || 'None'}
-										</div>
+										<div class="text-base-content/70 mb-1 text-xs font-medium">UUID</div>
+										<code class="text-xs break-all">{app.attrs?.uuid[0]}</code>
 									</div>
-								</div>
-
-								<div class="bg-base-100 rounded-lg p-3">
-									<div class="text-base-content/70 mb-1 text-xs font-medium">UUID</div>
-									<code class="text-xs break-all">{app.attrs?.uuid[0]}</code>
 								</div>
 							</div>
 						{/if}

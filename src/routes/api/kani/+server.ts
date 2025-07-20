@@ -65,6 +65,10 @@ export const POST: RequestHandler = async ({ request }) => {
             body: data?.body ? JSON.stringify(data.body) : undefined,
         },
     );
+    if(!result.ok) {
+        console.log("BODY:", data.body)
+        console.log("BODY:", JSON.stringify(data.body))
+    }
     let res;
     let ct = result.headers.get("content-type") ?? "";
     if (!ct.includes("json")) {
