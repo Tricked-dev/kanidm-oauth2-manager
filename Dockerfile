@@ -18,4 +18,4 @@ WORKDIR /app
 COPY --from=build /app/build ./build
 COPY --from=build /app/package.json ./package.json
 RUN ulimit -c unlimited
-RUN ["bun", "run", "./build/index.js"]
+CMD ["bun", "run", "./build/index.js"]
