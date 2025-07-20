@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { kaniRequest } from '../utils';
 	import Cropper from 'svelte-easy-crop';
+	import Toaster from '$lib/compoents/Toaster.svelte';
 
 	const { data } = $props();
 
@@ -341,7 +342,7 @@
 	async function fetchFavicon(appName: string) {
 		const app = data.apps.body.find((a: any) => a.attrs?.name[0] === appName);
 		const origin = app?.attrs?.oauth2_rs_origin_landing?.[0];
-		
+
 		if (!origin) {
 			addNotification('error', 'No homepage URL configured for this application');
 			return;
@@ -363,12 +364,12 @@
 			if (response.ok) {
 				const contentType = response.headers.get('content-type');
 				const blob = await response.blob();
-				
+
 				if (contentType && contentType.startsWith('image/')) {
 					// Create a File object with appropriate extension
 					const extension = contentType.split('/')[1] || 'png';
 					const file = new File([blob], `favicon.${extension}`, { type: contentType });
-					
+
 					// Upload the image
 					await uploadImage(appName, file);
 				} else {
@@ -547,66 +548,7 @@
 	});
 </script>
 
-<!-- Notification Toast Container -->
-<div class="toast toast-top toast-end z-50">
-	{#each notifications as notification}
-		<div
-			class="alert {notification.type === 'success'
-				? 'alert-success'
-				: notification.type === 'error'
-					? 'alert-error'
-					: 'alert-info'} max-w-md shadow-lg"
-		>
-			<div class="flex items-center gap-2">
-				{#if notification.type === 'success'}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-6 w-6 shrink-0 stroke-current"
-						fill="none"
-						viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-						/></svg
-					>
-				{:else if notification.type === 'error'}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-6 w-6 shrink-0 stroke-current"
-						fill="none"
-						viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-						/></svg
-					>
-				{:else}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						class="h-6 w-6 shrink-0 stroke-current"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						></path></svg
-					>
-				{/if}
-				<span class="flex-1 text-sm">{notification.message}</span>
-				<button
-					class="btn btn-sm btn-circle btn-ghost"
-					onclick={() => removeNotification(notification.id)}>✕</button
-				>
-			</div>
-		</div>
-	{/each}
-</div>
+<Toaster {notifications} {removeNotification} />
 
 <div class="container mx-auto px-4 py-8">
 	<div class="mb-8 flex items-center justify-between">
@@ -770,7 +712,7 @@
 									</label>
 									<textarea
 										id="redirects-{appName}"
-										class="textarea textarea-bordered h-32 font-mono text-sm w-full"
+										class="textarea textarea-bordered h-32 w-full font-mono text-sm"
 										placeholder="https://example.com/callback&#10;https://app.example.com/oauth/callback"
 										bind:value={editValues[appName].redirectUrls}
 									></textarea>
