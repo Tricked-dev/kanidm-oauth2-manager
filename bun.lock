@@ -5,6 +5,7 @@
       "name": "kanidm-oauth2-manager",
       "dependencies": {
         "daisyui": "^5.0.46",
+        "svelte-easy-crop": "^4.0.1",
       },
       "devDependencies": {
         "@sveltejs/adapter-node": "^5.2.12",
@@ -331,6 +332,8 @@
     "svelte": ["svelte@5.36.10", "", { "dependencies": { "@ampproject/remapping": "^2.3.0", "@jridgewell/sourcemap-codec": "^1.5.0", "@sveltejs/acorn-typescript": "^1.0.5", "@types/estree": "^1.0.5", "acorn": "^8.12.1", "aria-query": "^5.3.1", "axobject-query": "^4.1.0", "clsx": "^2.1.1", "esm-env": "^1.2.1", "esrap": "^2.1.0", "is-reference": "^3.0.3", "locate-character": "^3.0.0", "magic-string": "^0.30.11", "zimmerframe": "^1.1.2" } }, "sha512-hAjYQweQHM8VH5YEEf2+k9hGyMnd+oVHXoSA/eG607vViRk9qQO1g+Dvr29+yMuYQNScpOzHX3qcnC7LrcTGCQ=="],
 
     "svelte-check": ["svelte-check@4.3.0", "", { "dependencies": { "@jridgewell/trace-mapping": "^0.3.25", "chokidar": "^4.0.1", "fdir": "^6.2.0", "picocolors": "^1.0.0", "sade": "^1.7.4" }, "peerDependencies": { "svelte": "^4.0.0 || ^5.0.0-next.0", "typescript": ">=5.0.0" }, "bin": { "svelte-check": "bin/svelte-check" } }, "sha512-Iz8dFXzBNAM7XlEIsUjUGQhbEE+Pvv9odb9+0+ITTgFWZBGeJRRYqHUUglwe2EkLD5LIsQaAc4IUJyvtKuOO5w=="],
+
+    "svelte-easy-crop": ["svelte-easy-crop@4.0.1", "", { "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-0k7vVpHVLrPyobSXqey5IJUmFVxOoCaQrobFEsFXpSCyK8N5jTkRj1VX6NuCOZK8XXcMAqUvV0MktB8D5x1oCw=="],
 
     "tailwindcss": ["tailwindcss@4.1.11", "", {}, "sha512-2E9TBm6MDD/xKYe+dvJZAmg3yxIEDNRc0jwlNyDg/4Fil2QcSLjFKGVff0lAf1jjeaArlG/M75Ey/EYr/OJtBA=="],
 

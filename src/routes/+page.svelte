@@ -8,16 +8,35 @@
 	let editValues = $state<
 		Record<string, { displayName: string; origin: string; redirectUrls: string }>
 	>({});
-	let notifications = $state<Array<{ id: string; type: 'success' | 'error' | 'info'; message: string; timeout?: number }>>([]);
+	let notifications = $state<
+		Array<{ id: string; type: 'success' | 'error' | 'info'; message: string; timeout?: number }>
+	>([]);
 	let showCreateForm = $state(false);
-	let scopeMapModal = $state<{ show: boolean; appName: string; mode: 'add' | 'delete'; groupName?: string }>({ 
-		show: false, 
-		appName: '', 
-		mode: 'add' 
+	let scopeMapModal = $state<{
+		show: boolean;
+		appName: string;
+		mode: 'add' | 'delete';
+		groupName?: string;
+	}>({
+		show: false,
+		appName: '',
+		mode: 'add'
 	});
 	let scopeMapForm = $state({
 		groupName: '',
 		scopes: 'email, profile, openid, groups'
+	});
+	let imageModal = $state<{
+		show: boolean;
+		appName: string;
+		mode: 'upload' | 'crop' | 'delete';
+		file?: File;
+		imageSrc?: string;
+		cropResult?: { blob: Blob; url: string };
+	}>({
+		show: false,
+		appName: '',
+		mode: 'upload'
 	});
 	let createValues = $state({
 		name: '',
@@ -30,16 +49,16 @@
 	function addNotification(type: 'success' | 'error' | 'info', message: string, timeout = 5000) {
 		const id = Math.random().toString(36).substr(2, 9);
 		notifications.push({ id, type, message, timeout });
-		
+
 		if (timeout > 0) {
 			setTimeout(() => {
-				notifications = notifications.filter(n => n.id !== id);
+				notifications = notifications.filter((n) => n.id !== id);
 			}, timeout);
 		}
 	}
 
 	function removeNotification(id: string) {
-		notifications = notifications.filter(n => n.id !== id);
+		notifications = notifications.filter((n) => n.id !== id);
 	}
 
 	function openScopeMapModal(appName: string, mode: 'add' | 'delete', groupName?: string) {
@@ -62,8 +81,8 @@
 
 		const scopesArray = scopeMapForm.scopes
 			.split(',')
-			.map(s => `${s.trim()}`)
-			.filter(s => s.length > 2);
+			.map((s) => `${s.trim()}`)
+			.filter((s) => s.length > 2);
 
 		const response = await kaniRequest(fetch, {
 			path: `v1/oauth2/${appName}/_scopemap/${scopeMapForm.groupName.trim()}`,
@@ -96,6 +115,138 @@
 			await invalidate(() => true);
 		} else {
 			let errorMessage = 'Failed to remove scope map';
+			if (response.body && typeof response.body === 'string') {
+				errorMessage = response.body;
+			}
+			addNotification('error', errorMessage);
+		}
+	}
+
+	function openImageModal(appName: string, mode: 'upload' | 'delete') {
+		imageModal = { show: true, appName, mode };
+	}
+
+	function closeImageModal() {
+		imageModal = { show: false, appName: '', mode: 'upload' };
+		// Clean up any object URLs
+		if (imageModal.imageSrc) URL.revokeObjectURL(imageModal.imageSrc);
+		if (imageModal.cropResult) URL.revokeObjectURL(imageModal.cropResult.url);
+	}
+
+	function validateImageFile(file: File): string | null {
+		// Check file size (256KB = 256 * 1024 bytes)
+		if (file.size > 256 * 1024) {
+			return 'Image must be less than 256 KB';
+		}
+
+		// Check file type
+		const allowedTypes = [
+			'image/png',
+			'image/jpeg',
+			'image/jpg',
+			'image/gif',
+			'image/svg+xml',
+			'image/webp'
+		];
+		if (!allowedTypes.includes(file.type)) {
+			return 'Unsupported image format. Use PNG, JPG, GIF, SVG, or WebP';
+		}
+
+		return null;
+	}
+
+	async function handleImageUpload(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+
+		if (!file) return;
+
+		const error = validateImageFile(file);
+		if (error) {
+			addNotification('error', error);
+			target.value = '';
+			return;
+		}
+
+		// For SVG and GIF, upload directly without cropping
+		if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+			await uploadImage(imageModal.appName, file);
+			target.value = '';
+			return;
+		}
+
+		// For other formats, check dimensions and open cropper if needed
+		const img = new Image();
+		const imageSrc = URL.createObjectURL(file);
+
+		img.onload = async () => {
+			URL.revokeObjectURL(imageSrc);
+
+			// If already square and within limits, upload directly
+			if (img.width === img.height && img.width <= 1024) {
+				await uploadImage(imageModal.appName, file);
+			} else {
+				// Open cropper
+				imageModal = {
+					...imageModal,
+					mode: 'crop',
+					file,
+					imageSrc: URL.createObjectURL(file)
+				};
+			}
+		};
+
+		img.onerror = () => {
+			URL.revokeObjectURL(imageSrc);
+			addNotification('error', 'Invalid image file');
+		};
+
+		img.src = imageSrc;
+		target.value = '';
+	}
+
+	async function uploadImage(appName: string, file: File) {
+		try {
+			// Create FormData for multipart upload
+			const formData = new FormData();
+            console.log(file.type)
+			formData.append('image', file);
+
+			const response = await kaniRequest(fetch, {
+				path: `v1/oauth2/${appName}/_image`,
+				method: 'POST',
+				formData: formData
+			});
+
+			if (response.status === 200) {
+				addNotification('success', `Successfully uploaded image for ${appName}`);
+				closeImageModal();
+				await invalidate(() => true);
+			} else {
+				let errorMessage = 'Failed to upload image';
+				if (response.body && typeof response.body === 'string') {
+					errorMessage = response.body;
+				}
+				addNotification('error', errorMessage);
+			}
+		} catch (error) {
+            console.error(error)
+			addNotification('error', 'Network error while uploading image');
+		}
+	}
+
+	async function deleteImage(appName: string) {
+		const response = await kaniRequest(fetch, {
+			path: `v1/oauth2/${appName}/_image`,
+			method: 'DELETE'
+		});
+
+		if (response.status === 200) {
+			addNotification('success', `Removed image for ${appName}`);
+			closeImageModal();
+			await invalidate(() => true);
+		} else {
+			let errorMessage = 'Failed to remove image';
 			if (response.body && typeof response.body === 'string') {
 				errorMessage = response.body;
 			}
@@ -152,7 +303,11 @@
 			await invalidate(() => true);
 		} else {
 			let errorMessage = 'Failed to update application';
-			if (response.body && typeof response.body === 'object' && 'invalidattribute' in response.body) {
+			if (
+				response.body &&
+				typeof response.body === 'object' &&
+				'invalidattribute' in response.body
+			) {
 				errorMessage = response.body.invalidattribute as string;
 			}
 			addNotification('error', errorMessage);
@@ -197,7 +352,11 @@
 			let errorMessage = 'Failed to create application';
 			if (response.body && typeof response.body === 'string') {
 				errorMessage = response.body;
-			} else if (response.body && typeof response.body === 'object' && 'invalidattribute' in response.body) {
+			} else if (
+				response.body &&
+				typeof response.body === 'object' &&
+				'invalidattribute' in response.body
+			) {
 				errorMessage = response.body.invalidattribute as string;
 			}
 			addNotification('error', errorMessage);
@@ -208,17 +367,59 @@
 <!-- Notification Toast Container -->
 <div class="toast toast-top toast-end z-50">
 	{#each notifications as notification}
-		<div class="alert {notification.type === 'success' ? 'alert-success' : notification.type === 'error' ? 'alert-error' : 'alert-info'} shadow-lg max-w-md">
+		<div
+			class="alert {notification.type === 'success'
+				? 'alert-success'
+				: notification.type === 'error'
+					? 'alert-error'
+					: 'alert-info'} max-w-md shadow-lg"
+		>
 			<div class="flex items-center gap-2">
 				{#if notification.type === 'success'}
-					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-6 w-6 shrink-0 stroke-current"
+						fill="none"
+						viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+						/></svg
+					>
 				{:else if notification.type === 'error'}
-					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-6 w-6 shrink-0 stroke-current"
+						fill="none"
+						viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+						/></svg
+					>
 				{:else}
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						class="h-6 w-6 shrink-0 stroke-current"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						></path></svg
+					>
 				{/if}
 				<span class="flex-1 text-sm">{notification.message}</span>
-				<button class="btn btn-sm btn-circle btn-ghost" onclick={() => removeNotification(notification.id)}>✕</button>
+				<button
+					class="btn btn-sm btn-circle btn-ghost"
+					onclick={() => removeNotification(notification.id)}>✕</button
+				>
 			</div>
 		</div>
 	{/each}
@@ -391,14 +592,49 @@
 										bind:value={editValues[appName].redirectUrls}
 									></textarea>
 								</div>
-
-								
 							</div>
 						{:else}
 							<div class="space-y-4">
 								<div class="bg-base-100 rounded-lg p-4">
 									<div class="text-base-content/70 mb-1 text-sm font-medium">Application Name</div>
 									<div class="font-mono text-sm">{app.attrs?.name.join(', ')}</div>
+								</div>
+
+								<div class="bg-base-100 rounded-lg p-4">
+									<div class="mb-3 flex items-center justify-between">
+										<div class="text-base-content/70 text-sm font-medium">Application Image</div>
+										<div class="space-x-2">
+											<button
+												class="btn btn-sm btn-primary"
+												onclick={() => openImageModal(appName, 'upload')}
+											>
+												{app.attrs?.image?.length ? 'Update' : 'Upload'}
+											</button>
+											{#if app.attrs?.image?.length}
+												<button
+													class="btn btn-sm btn-error"
+													onclick={() => openImageModal(appName, 'delete')}
+												>
+													Delete
+												</button>
+											{/if}
+										</div>
+									</div>
+									{#if app.attrs?.image?.length}
+										<div class="flex justify-center">
+											<img
+												src="/api/kani/image/{appName}"
+												alt="Application logo"
+												class="border-base-300 h-16 w-16 rounded-lg border object-cover"
+											/>
+										</div>
+									{:else}
+										<div
+											class="bg-base-200 border-base-300 flex h-16 items-center justify-center rounded-lg border-2 border-dashed"
+										>
+											<span class="text-base-content/60 text-sm">No image uploaded</span>
+										</div>
+									{/if}
 								</div>
 
 								<div class="bg-base-100 rounded-lg p-4">
@@ -422,10 +658,10 @@
 								</div>
 
 								<div class="bg-base-100 rounded-lg p-4">
-									<div class="flex justify-between items-center mb-3">
+									<div class="mb-3 flex items-center justify-between">
 										<div class="text-base-content/70 text-sm font-medium">Scope Map</div>
-										<button 
-											class="btn btn-sm btn-primary" 
+										<button
+											class="btn btn-sm btn-primary"
 											onclick={() => openScopeMapModal(appName, 'add')}
 										>
 											Add Scope
@@ -435,10 +671,10 @@
 										<div class="space-y-2">
 											{#each app.attrs.oauth2_rs_scope_map as scope}
 												{@const [groupName] = scope.split(':')}
-												<div class="flex items-center justify-between bg-base-200 rounded p-2">
-													<code class="text-xs break-all flex-1">{scope}</code>
-													<button 
-														class="btn btn-xs btn-error ml-2" 
+												<div class="bg-base-200 flex items-center justify-between rounded p-2">
+													<code class="flex-1 text-xs break-all">{scope}</code>
+													<button
+														class="btn btn-xs btn-error ml-2"
 														onclick={() => openScopeMapModal(appName, 'delete', groupName.trim())}
 													>
 														Delete
@@ -499,12 +735,12 @@
 {#if scopeMapModal.show}
 	<div class="modal modal-open">
 		<div class="modal-box">
-			<h3 class="font-bold text-lg">
+			<h3 class="text-lg font-bold">
 				{scopeMapModal.mode === 'add' ? 'Add Scope Mapping' : 'Delete Scope Mapping'}
 			</h3>
-			
+
 			{#if scopeMapModal.mode === 'add'}
-				<div class="py-4 space-y-4">
+				<div class="space-y-4 py-4">
 					<div class="form-control">
 						<label class="label" for="group-name">
 							<span class="label-text font-medium">Group Name</span>
@@ -518,7 +754,7 @@
 							bind:value={scopeMapForm.groupName}
 						/>
 					</div>
-					
+
 					<div class="form-control">
 						<label class="label" for="scopes">
 							<span class="label-text font-medium">Scopes</span>
@@ -532,42 +768,170 @@
 							bind:value={scopeMapForm.scopes}
 						/>
 					</div>
-					
+
 					<div class="alert alert-info">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-info shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							class="stroke-info h-6 w-6 shrink-0"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+							></path></svg
+						>
 						<span class="text-sm">
-							This will create a scope mapping: <code class="bg-base-200 text-base-content p-1 rounded">{scopeMapForm.groupName}: {"{" + scopeMapForm.scopes.split(',').map(s => `"${s.trim()}"`).join(', ') + "}"}</code>
+							This will create a scope mapping: <code
+								class="bg-base-200 text-base-content rounded p-1"
+								>{scopeMapForm.groupName}: {'{' +
+									scopeMapForm.scopes
+										.split(',')
+										.map((s) => `"${s.trim()}"`)
+										.join(', ') +
+									'}'}</code
+							>
 						</span>
 					</div>
 				</div>
 			{:else}
 				<div class="py-4">
-					<p>Are you sure you want to delete the scope mapping for <strong>{scopeMapModal.groupName}</strong>?</p>
-					<div class="mt-4 p-3 bg-base-200 rounded">
+					<p>
+						Are you sure you want to delete the scope mapping for <strong
+							>{scopeMapModal.groupName}</strong
+						>?
+					</p>
+					<div class="bg-base-200 mt-4 rounded p-3">
 						<code class="text-sm break-all">
-							{data.apps.body.find(app => app.attrs?.name[0] === scopeMapModal.appName)?.attrs?.oauth2_rs_scope_map?.find(scope => scope.startsWith(scopeMapModal.groupName || '')) || ''}
+							{data.apps.body
+								.find((app) => app.attrs?.name[0] === scopeMapModal.appName)
+								?.attrs?.oauth2_rs_scope_map?.find((scope) =>
+									scope.startsWith(scopeMapModal.groupName || '')
+								) || ''}
 						</code>
 					</div>
 				</div>
 			{/if}
-			
+
 			<div class="modal-action">
 				<button class="btn btn-outline" onclick={closeScopeMapModal}>Cancel</button>
 				{#if scopeMapModal.mode === 'add'}
-					<button 
-						class="btn btn-primary" 
+					<button
+						class="btn btn-primary"
 						onclick={() => addScopeMap(scopeMapModal.appName)}
 						disabled={!scopeMapForm.groupName.trim()}
 					>
 						Add Scope Map
 					</button>
 				{:else}
-					<button 
-						class="btn btn-error" 
+					<button
+						class="btn btn-error"
 						onclick={() => deleteScopeMap(scopeMapModal.appName, scopeMapModal.groupName || '')}
 					>
 						Delete Scope Map
 					</button>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Image Management Modal -->
+{#if imageModal.show}
+	<div class="modal modal-open">
+		<div class="modal-box max-w-2xl">
+			<h3 class="text-lg font-bold">
+				{imageModal.mode === 'upload'
+					? 'Upload Application Image'
+					: imageModal.mode === 'crop'
+						? 'Crop Image'
+						: 'Delete Application Image'}
+			</h3>
+
+			{#if imageModal.mode === 'upload'}
+				<div class="py-4">
+					<div class="form-control">
+						<label class="label" for="image-upload">
+							<span class="label-text font-medium">Select Image</span>
+							<span class="label-text-alt">Max 256KB, square format preferred</span>
+						</label>
+						<input
+							id="image-upload"
+							type="file"
+							accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml,image/webp"
+							class="file-input file-input-bordered w-full"
+							onchange={handleImageUpload}
+						/>
+					</div>
+
+					<div class="alert alert-info mt-4">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							class="stroke-info h-6 w-6 shrink-0"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+							></path></svg
+						>
+						<div class="text-sm">
+							<div><strong>Requirements:</strong></div>
+							<ul class="mt-1 list-inside list-disc">
+								<li>Maximum 1024 x 1024 pixels</li>
+								<li>Less than 256 KB</li>
+								<li>Supported formats: PNG, JPG, GIF, SVG, WebP</li>
+								<li>Square images work best</li>
+							</ul>
+							<div class="mt-2">
+								<strong>Note:</strong> SVG and GIF files are uploaded directly. Other formats may be
+								cropped to square.
+							</div>
+						</div>
+					</div>
+				</div>
+			{:else if imageModal.mode === 'crop'}
+				<div class="py-4">
+					<p class="mb-4">Crop your image to make it square (1:1 aspect ratio):</p>
+					<!-- Image cropper will be added here when implementing svelte-easy-crop -->
+					<div class="bg-base-200 rounded-lg p-8 text-center">
+						<p class="text-base-content/60">Image cropper will be implemented here</p>
+						<p class="text-base-content/40 mt-2 text-sm">
+							For now, please use a square image (same width and height)
+						</p>
+					</div>
+				</div>
+			{:else}
+				{@const app = data.apps.body.find((a) => a.attrs?.name[0] === imageModal.appName)}
+				<div class="py-4">
+					<p>
+						Are you sure you want to delete the image for <strong>{imageModal.appName}</strong>?
+					</p>
+					<div class="mt-4 flex justify-center">
+						<div class="border-base-300 h-32 w-32 overflow-hidden rounded-lg border">
+							{#if app?.attrs?.image?.length}
+								<img
+									src="data:image/png;base64,{app.attrs.image[0]}"
+									alt="Current application logo"
+									class="h-full w-full object-cover"
+								/>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<div class="modal-action">
+				<button class="btn btn-outline" onclick={closeImageModal}>Cancel</button>
+				{#if imageModal.mode === 'delete'}
+					<button class="btn btn-error" onclick={() => deleteImage(imageModal.appName)}>
+						Delete Image
+					</button>
+				{:else if imageModal.mode === 'crop'}
+					<button class="btn btn-primary"> Crop & Upload </button>
 				{/if}
 			</div>
 		</div>
