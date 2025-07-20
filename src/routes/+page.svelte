@@ -93,7 +93,6 @@
 			body: {
 				attrs: {
 					name: [createValues.name.trim().toLowerCase()],
-					oauth2_rs_name: [createValues.name.trim().toLowerCase()],
 					oauth2_rs_origin_landing: [createValues.origin.trim()],
 					displayname: [createValues.displayName.trim()],
 					oauth2_rs_origin: redirectUrls
