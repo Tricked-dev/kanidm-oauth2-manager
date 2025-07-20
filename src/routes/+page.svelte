@@ -2,8 +2,10 @@
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { kaniRequest } from '../utils';
-	import Cropper from 'svelte-easy-crop';
 	import Toaster from '$lib/compoents/Toaster.svelte';
+	import ScopeMapModal from '$lib/modals/ScopeMapModal.svelte';
+	import ImageModal from '$lib/modals/ImageModal.svelte';
+	import DeleteModal from '$lib/modals/DeleteModal.svelte';
 
 	const { data } = $props();
 
@@ -59,93 +61,6 @@
 		type: 'basic' as 'basic' | 'public'
 	});
 
-	let crop = $state({ x: 0, y: 0 });
-	let zoom = $state(1);
-
-	async function handleCropComplete(croppedArea: any) {
-		imageModal.croppedAreaPixels = croppedArea.pixels;
-	}
-
-	async function cropAndUpload() {
-		if (!imageModal.file || !imageModal.imageSrc || !imageModal.croppedAreaPixels) {
-			addNotification('error', 'Missing image or crop data');
-			return;
-		}
-
-		try {
-			const canvas = document.createElement('canvas');
-			const ctx = canvas.getContext('2d');
-
-			if (!ctx) {
-				addNotification('error', 'Canvas context not available');
-				return;
-			}
-
-			const img = new Image();
-			img.crossOrigin = 'anonymous';
-
-			await new Promise((resolve, reject) => {
-				img.onload = resolve;
-				img.onerror = (e) => {
-					console.error('Image load error:', e);
-					reject(e);
-				};
-				img.src = imageModal.imageSrc!;
-			});
-
-			const { x, y, width, height } = imageModal.croppedAreaPixels;
-
-			// Ensure canvas dimensions are valid
-			if (width <= 0 || height <= 0) {
-				addNotification('error', 'Invalid crop dimensions');
-				return;
-			}
-
-			// Ensure crop area is within image bounds
-			if (x < 0 || y < 0 || x + width > img.naturalWidth || y + height > img.naturalHeight) {
-				addNotification('error', 'Crop area exceeds image bounds');
-				return;
-			}
-
-			canvas.width = Math.round(width);
-			canvas.height = Math.round(height);
-
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-			ctx.drawImage(
-				img,
-				Math.round(x),
-				Math.round(y),
-				Math.round(width),
-				Math.round(height),
-				0,
-				0,
-				canvas.width,
-				canvas.height
-			);
-
-			try {
-				const blob: Blob = await new Promise((resolve, reject) => {
-					canvas.toBlob((result) => {
-						if (result) {
-							resolve(result);
-						} else {
-							reject(new Error('Canvas toBlob returned null'));
-						}
-					}, 'image/webp');
-				});
-
-				const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
-				await uploadImage(imageModal.appName, file);
-			} catch (blobError: any) {
-				console.error('Blob creation error:', blobError);
-				addNotification('error', `Failed to create image blob: ${blobError.message}`);
-			}
-		} catch (error: any) {
-			console.error('Error cropping image:', error);
-			addNotification('error', `Failed to crop image: ${error.message}`);
-		}
-	}
 
 	function addNotification(type: 'success' | 'error' | 'info', message: string, timeout = 5000) {
 		const id = Math.random().toString(36).substr(2, 9);
@@ -169,131 +84,12 @@
 		}
 	}
 
-	function closeScopeMapModal() {
-		scopeMapModal = { show: false, appName: '', mode: 'add' };
-		scopeMapForm = { groupName: '', scopes: 'email, profile, openid, groups' };
-	}
-
-	async function addScopeMap(appName: string) {
-		if (!scopeMapForm.groupName.trim()) {
-			addNotification('error', 'Group name is required');
-			return;
-		}
-
-		const scopesArray = scopeMapForm.scopes
-			.split(',')
-			.map((s) => `${s.trim()}`)
-			.filter((s) => s.length > 2);
-
-		const response = await kaniRequest(fetch, {
-			path: `v1/oauth2/${appName}/_scopemap/${scopeMapForm.groupName.trim()}`,
-			method: 'POST',
-			body: scopesArray
-		});
-
-		if (response.status === 200) {
-			addNotification('success', `Added scope map for ${scopeMapForm.groupName}`);
-			closeScopeMapModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to add scope map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
-	}
-
-	async function deleteScopeMap(appName: string, groupName: string) {
-		const response = await kaniRequest(fetch, {
-			path: `v1/oauth2/${appName}/_scopemap/${groupName}`,
-			method: 'DELETE'
-		});
-
-		if (response.status === 200) {
-			addNotification('success', `Removed scope map for ${groupName}`);
-			closeScopeMapModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to remove scope map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
-	}
-
 	function openImageModal(appName: string, mode: 'upload' | 'delete') {
 		imageModal = { show: true, appName, mode };
 	}
 
-	function closeImageModal() {
-		imageModal = { show: false, appName: '', mode: 'upload' };
-		// Clean up any object URLs
-		if (imageModal.imageSrc) URL.revokeObjectURL(imageModal.imageSrc);
-		if (imageModal.cropResult) URL.revokeObjectURL(imageModal.cropResult.url);
-	}
-
-	function validateImageFile(file: File): string | null {
-		// Check file size (256KB = 256 * 1024 bytes)
-		// if (file.size > 256 * 1024) {
-		// 	return 'Image must be less than 256 KB';
-		// }
-
-		// Check file type
-		const allowedTypes = [
-			'image/png',
-			'image/jpeg',
-			'image/jpg',
-			'image/gif',
-			'image/svg+xml',
-			'image/webp'
-		];
-		if (!allowedTypes.includes(file.type)) {
-			return 'Unsupported image format. Use PNG, JPG, GIF, SVG, or WebP';
-		}
-
-		return null;
-	}
-
-	async function handleImageUpload(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-
-		if (!file) return;
-
-		const error = validateImageFile(file);
-		if (error) {
-			addNotification('error', error);
-			target.value = '';
-			return;
-		}
-
-		// For SVG and GIF, validate size then upload directly
-		if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
-			if (file.size > 256 * 1024) {
-				addNotification('error', 'Image must be less than 256 KB');
-				target.value = '';
-				return;
-			}
-			await uploadImage(imageModal.appName, file);
-			target.value = '';
-			return;
-		}
-
-		// For PNG/JPG/WebP, always open cropper for processing
-		imageModal = {
-			...imageModal,
-			mode: 'crop',
-			file,
-			imageSrc: URL.createObjectURL(file)
-		};
-		target.value = '';
-	}
-
 	async function uploadImage(appName: string, file: File) {
 		try {
-			// Create FormData for multipart upload
 			const formData = new FormData();
 			formData.append('image', file);
 
@@ -305,7 +101,6 @@
 
 			if (response.status === 200) {
 				addNotification('success', `Successfully uploaded image for ${appName}`);
-				closeImageModal();
 				await invalidate(() => true);
 			} else {
 				let errorMessage = 'Failed to upload image';
@@ -317,25 +112,6 @@
 		} catch (error) {
 			console.error(error);
 			addNotification('error', 'Network error while uploading image');
-		}
-	}
-
-	async function deleteImage(appName: string) {
-		const response = await kaniRequest(fetch, {
-			path: `v1/oauth2/${appName}/_image`,
-			method: 'DELETE'
-		});
-
-		if (response.status === 200) {
-			addNotification('success', `Removed image for ${appName}`);
-			closeImageModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to remove image';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
 		}
 	}
 
@@ -407,29 +183,6 @@
 
 	function openDeleteModal(appName: string, displayName: string) {
 		deleteModal = { show: true, appName, displayName };
-	}
-
-	function closeDeleteModal() {
-		deleteModal = { show: false, appName: '', displayName: '' };
-	}
-
-	async function deleteApplication() {
-		const response = await kaniRequest(fetch, {
-			path: `v1/oauth2/${deleteModal.appName}`,
-			method: 'DELETE'
-		});
-
-		if (response.status === 200) {
-			addNotification('success', `Successfully deleted application: ${deleteModal.displayName}`);
-			closeDeleteModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to delete application';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
 	}
 
 	function toggleEditMode(appName: string) {
@@ -872,283 +625,6 @@
 	</div>
 </div>
 
-<!-- Scope Map Management Modal -->
-{#if scopeMapModal.show}
-	<div class="modal modal-open">
-		<div class="modal-box">
-			<h3 class="text-lg font-bold">
-				{scopeMapModal.mode === 'add' ? 'Add Scope Mapping' : 'Delete Scope Mapping'}
-			</h3>
-
-			{#if scopeMapModal.mode === 'add'}
-				<div class="space-y-4 py-4">
-					<div class="form-control">
-						<label class="label" for="group-name">
-							<span class="label-text font-medium">Group Name</span>
-							<span class="label-text-alt">e.g., generic_users@domain.com</span>
-						</label>
-						<input
-							id="group-name"
-							type="text"
-							class="input input-bordered"
-							placeholder="generic_users@domain.com"
-							bind:value={scopeMapForm.groupName}
-						/>
-					</div>
-
-					<div class="form-control">
-						<label class="label" for="scopes">
-							<span class="label-text font-medium">Scopes</span>
-							<span class="label-text-alt">Comma-separated list</span>
-						</label>
-						<input
-							id="scopes"
-							type="text"
-							class="input input-bordered font-mono"
-							placeholder="email, profile, openid, groups"
-							bind:value={scopeMapForm.scopes}
-						/>
-					</div>
-
-					<div class="alert alert-info">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							class="stroke-info h-6 w-6 shrink-0"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							></path></svg
-						>
-						<span class="text-sm">
-							This will create a scope mapping: <code
-								class="bg-base-200 text-base-content rounded p-1"
-								>{scopeMapForm.groupName}: {'{' +
-									scopeMapForm.scopes
-										.split(',')
-										.map((s) => `"${s.trim()}"`)
-										.join(', ') +
-									'}'}</code
-							>
-						</span>
-					</div>
-				</div>
-			{:else}
-				<div class="py-4">
-					<p>
-						Are you sure you want to delete the scope mapping for <strong
-							>{scopeMapModal.groupName}</strong
-						>?
-					</p>
-					<div class="bg-base-200 mt-4 rounded p-3">
-						<code class="text-sm break-all">
-							{data.apps.body
-								.find((app) => app.attrs?.name[0] === scopeMapModal.appName)
-								?.attrs?.oauth2_rs_scope_map?.find((scope) =>
-									scope.startsWith(scopeMapModal.groupName || '')
-								) || ''}
-						</code>
-					</div>
-				</div>
-			{/if}
-
-			<div class="modal-action">
-				<button class="btn btn-outline" onclick={closeScopeMapModal}>Cancel</button>
-				{#if scopeMapModal.mode === 'add'}
-					<button
-						class="btn btn-primary"
-						onclick={() => addScopeMap(scopeMapModal.appName)}
-						disabled={!scopeMapForm.groupName.trim()}
-					>
-						Add Scope Map
-					</button>
-				{:else}
-					<button
-						class="btn btn-error"
-						onclick={() => deleteScopeMap(scopeMapModal.appName, scopeMapModal.groupName || '')}
-					>
-						Delete Scope Map
-					</button>
-				{/if}
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Image Management Modal -->
-{#if imageModal.show}
-	<div class="modal modal-open">
-		<div class="modal-box max-w-2xl">
-			<h3 class="text-lg font-bold">
-				{imageModal.mode === 'upload'
-					? 'Upload Application Image'
-					: imageModal.mode === 'crop'
-						? 'Crop Image'
-						: 'Delete Application Image'}
-			</h3>
-
-			{#if imageModal.mode === 'upload'}
-				<div class="py-4">
-					<div class="form-control">
-						<label class="label" for="image-upload">
-							<span class="label-text font-medium">Select Image</span>
-							<span class="label-text-alt">Max 256KB, square format preferred</span>
-						</label>
-						<input
-							id="image-upload"
-							type="file"
-							accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml,image/webp"
-							class="file-input file-input-bordered w-full"
-							onchange={handleImageUpload}
-						/>
-					</div>
-
-					<div class="alert alert-info mt-4">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							class="stroke-info h-6 w-6 shrink-0"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							></path></svg
-						>
-						<div class="text-sm">
-							<div><strong>Requirements:</strong></div>
-							<ul class="mt-1 list-inside list-disc">
-								<li>Maximum 1024 x 1024 pixels</li>
-								<li>Less than 256 KB</li>
-								<li>Supported formats: PNG, JPG, GIF, SVG, WebP</li>
-								<li>Square images work best</li>
-							</ul>
-							<div class="mt-2">
-								<strong>Note:</strong> SVG and GIF files are uploaded directly. Other formats may be
-								cropped to square.
-							</div>
-						</div>
-					</div>
-				</div>
-			{:else if imageModal.mode === 'crop'}
-				<div class="py-4">
-					<p class="mb-4">Crop your image to make it square (1:1 aspect ratio):</p>
-					{#if imageModal.imageSrc}
-						<div class="relative h-96 w-full">
-							<Cropper
-								image={imageModal.imageSrc}
-								bind:crop
-								bind:zoom
-								oncropcomplete={handleCropComplete}
-								aspect={1}
-							/>
-						</div>
-						<div class="alert alert-info mt-4">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								class="stroke-info h-6 w-6 shrink-0"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-								></path></svg
-							>
-							<div class="text-sm">
-								Image will be converted to WebP format and resized to max 1024px. If still too
-								large, it will be resized to 512px.
-							</div>
-						</div>
-					{/if}
-				</div>
-			{:else}
-				{@const app = data.apps.body.find((a) => a.attrs?.name[0] === imageModal.appName)}
-				<div class="py-4">
-					<p>
-						Are you sure you want to delete the image for <strong>{imageModal.appName}</strong>?
-					</p>
-					<div class="mt-4 flex justify-center">
-						<div class="border-base-300 h-32 w-32 overflow-hidden rounded-lg border">
-							{#if app?.attrs?.image?.length}
-								<img
-									src="/api/kani/image/{imageModal.appName}"
-									alt="Current application logo"
-									class="h-full w-full object-cover"
-								/>
-							{/if}
-						</div>
-					</div>
-				</div>
-			{/if}
-
-			<div class="modal-action">
-				<button class="btn btn-outline" onclick={closeImageModal}>Cancel</button>
-				{#if imageModal.mode === 'delete'}
-					<button class="btn btn-error" onclick={() => deleteImage(imageModal.appName)}>
-						Delete Image
-					</button>
-				{:else if imageModal.mode === 'crop'}
-					<button
-						class="btn btn-primary"
-						onclick={() => cropAndUpload()}
-						disabled={!imageModal.croppedAreaPixels}
-					>
-						Crop & Upload
-					</button>
-				{/if}
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Delete Application Confirmation Modal -->
-{#if deleteModal.show}
-	<div class="modal modal-open">
-		<div class="modal-box">
-			<h3 class="text-lg font-bold">Delete Application</h3>
-
-			<div class="py-4">
-				<div class="alert alert-warning mb-4">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-6 w-6 shrink-0 stroke-current"
-						fill="none"
-						viewBox="0 0 24 24"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z"
-						/>
-					</svg>
-					<div>
-						<div class="font-bold">Warning: This action cannot be undone!</div>
-						<div class="text-sm">
-							This will permanently delete the OAuth2 application and all its configuration.
-						</div>
-					</div>
-				</div>
-
-				<p class="mb-2 text-lg">Are you sure you want to delete the application:</p>
-				<div class="bg-base-200 rounded p-3">
-					<div class="text-xl font-bold">{deleteModal.displayName}</div>
-					<div class="text-base-content/70 font-mono text-sm">({deleteModal.appName})</div>
-				</div>
-			</div>
-
-			<div class="modal-action">
-				<button class="btn btn-outline" onclick={closeDeleteModal}>Cancel</button>
-				<button class="btn btn-error" onclick={() => deleteApplication()}>
-					Delete Application
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
+<ScopeMapModal {scopeMapModal} {scopeMapForm} {data} {addNotification} />
+<ImageModal {imageModal} {data} {addNotification} />
+<DeleteModal {deleteModal} {addNotification} />
