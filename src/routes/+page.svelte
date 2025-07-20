@@ -723,7 +723,7 @@
 									</label>
 									<textarea
 										id="redirects-{appName}"
-										class="textarea textarea-bordered h-24 font-mono text-sm"
+										class="textarea textarea-bordered h-32 font-mono text-sm w-full"
 										placeholder="https://example.com/callback&#10;https://app.example.com/oauth/callback"
 										bind:value={editValues[appName].redirectUrls}
 									></textarea>
