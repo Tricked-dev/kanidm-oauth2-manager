@@ -18,7 +18,10 @@
 			editingApps[appName] = true;
 			editValues[appName] = {
 				displayName: app?.attrs?.displayname?.[0] || '',
-				redirectUrls: app?.attrs?.oauth2_rs_origin?.join('\n') || ''
+				redirectUrls: app?.attrs?.oauth2_rs_origin
+					?.map(url => url.trim())
+					?.filter(url => url.length > 0)
+					?.join('\n') || ''
 			};
 		}
 	}
@@ -30,14 +33,14 @@
 		const redirectUrls = values.redirectUrls
 			.split('\n')
 			.map(url => url.trim())
-			.filter(url => url.length > 0);
+			.filter(url => url.length > 0 && url.startsWith('http'));
 
 		const response = await kaniRequest(fetch, {
 			path: `v1/oauth2/${appName}`,
 			method: 'PATCH',
 			body: {
 				attrs: {
-					displayName: [values.displayName],
+					displayName: [values.displayName.trim()],
 					oauth2_rs_origin: redirectUrls
 				}
 			}
@@ -55,84 +58,88 @@
 	{#each data.apps.body as app}
 		{@const appName = app.attrs?.name[0]}
 		{@const isEditing = editingApps[appName]}
-		<div class="card bg-base-300 max-w-[40rem]">
+		<div class="card bg-base-300 max-w-[40rem] min-h-[500px]">
 			<div class="card-body">
+				<h2 class="card-title mb-4">
+					{#if isEditing}
+						Editing: {app.attrs?.displayname}
+					{:else}
+						{app.attrs?.displayname}
+					{/if}
+				</h2>
 				
-				{#if isEditing}
-					<div class="form-control">
-						<label class="label" for="displayname-{appName}">
-							<span class="label-text">Display Name</span>
-						</label>
-						<input
-							id="displayname-{appName}"
-							class="input input-bordered"
-							bind:value={editValues[appName].displayName}
-						/>
-					</div>
-					
-					<div class="form-control mt-4">
-						<label class="label" for="redirects-{appName}">
-							<span class="label-text">Redirect URLs (one per line)</span>
-						</label>
-						<textarea
-							id="redirects-{appName}"
-							class="textarea textarea-bordered h-32"
-							placeholder="https://example.com/callback"
-							bind:value={editValues[appName].redirectUrls}
-						></textarea>
-					</div>
-				{:else}
-					<h2 class="card-title">{app.attrs?.displayname}</h2>
-				{/if}
-				{#if !isEditing}
-					<div class="overflow-x-auto mt-4">
-						<table class="table table-sm">
-							<thead>
-								<tr>
-									<th>Key</th>
-									<th>Value</th>
-								</tr>
-							</thead>
-							<tbody>
-								<tr>
-									<td class="font-medium">Name</td>
-									<td>{app.attrs?.name.join(', ')}</td>
-								</tr>
-								<tr>
-									<td class="font-medium">Redirect URLs</td>
-									<td>
-										{#if app.attrs?.oauth2_rs_origin?.length}
-											<div class="flex flex-col gap-1">
-												{#each app.attrs.oauth2_rs_origin as url}
-													<code class="text-xs bg-base-100 p-1 rounded">{url}</code>
-												{/each}
+				<div class="flex-1">
+					{#if isEditing}
+						<div class="space-y-4">
+							<div class="form-control">
+								<label class="label" for="displayname-{appName}">
+									<span class="label-text font-medium">Display Name</span>
+								</label>
+								<input
+									id="displayname-{appName}"
+									class="input input-bordered"
+									bind:value={editValues[appName].displayName}
+									placeholder="Enter display name"
+								/>
+							</div>
+							
+							<div class="form-control">
+								<label class="label" for="redirects-{appName}">
+									<span class="label-text font-medium">Redirect URLs</span>
+									<span class="label-text-alt">One URL per line, must start with http</span>
+								</label>
+								<textarea
+									id="redirects-{appName}"
+									class="textarea textarea-bordered h-32 font-mono text-sm"
+									placeholder="https://example.com/callback&#10;https://app.example.com/oauth/callback"
+									bind:value={editValues[appName].redirectUrls}
+								></textarea>
+							</div>
+						</div>
+					{:else}
+						<div class="overflow-x-auto">
+							<table class="table table-sm">
+								<tbody>
+									<tr>
+										<td class="font-medium w-1/3">Name</td>
+										<td>{app.attrs?.name.join(', ')}</td>
+									</tr>
+									<tr>
+										<td class="font-medium">Redirect URLs</td>
+										<td>
+											{#if app.attrs?.oauth2_rs_origin?.length}
+												<div class="flex flex-col gap-1">
+													{#each app.attrs.oauth2_rs_origin as url}
+														<code class="text-xs bg-base-100 p-2 rounded block break-all">{url}</code>
+													{/each}
+												</div>
+											{:else}
+												<span class="text-base-content/60 italic">None configured</span>
+											{/if}
+										</td>
+									</tr>
+									<tr>
+										<td class="font-medium">Legacy Crypto</td>
+										<td>
+											<div class="badge {app.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] === 'true' ? 'badge-warning' : 'badge-success'}">
+												{app.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] === 'true' ? 'Enabled' : 'Disabled'}
 											</div>
-										{:else}
-											<span class="text-gray-500">None configured</span>
-										{/if}
-									</td>
-								</tr>
-								<tr>
-									<td class="font-medium">Legacy Crypto</td>
-									<td>
-										<div class="badge {app.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] === 'true' ? 'badge-warning' : 'badge-success'}">
-											{app.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] === 'true' ? 'Enabled' : 'Disabled'}
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td class="font-medium">Scope Map</td>
-									<td>{app.attrs?.oauth2_rs_scope_map?.join(', ') || 'None'}</td>
-								</tr>
-								<tr>
-									<td class="font-medium">UUID</td>
-									<td><code class="text-xs">{app.attrs?.uuid[0]}</code></td>
-								</tr>
-							</tbody>
-						</table>
-					</div>
-				{/if}
-				<div class="card-actions justify-end mt-4">
+										</td>
+									</tr>
+									<tr>
+										<td class="font-medium">Scope Map</td>
+										<td>{app.attrs?.oauth2_rs_scope_map?.join(', ') || 'None'}</td>
+									</tr>
+									<tr>
+										<td class="font-medium">UUID</td>
+										<td><code class="text-xs">{app.attrs?.uuid[0]}</code></td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					{/if}
+				</div>
+				<div class="card-actions justify-end mt-6 pt-4 border-t border-base-content/10">
 					{#if isEditing}
 						<button 
 							class="btn btn-outline" 
