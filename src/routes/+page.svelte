@@ -52,8 +52,9 @@
 	let crop = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
 
-    async function handleCropComplete(croppedAreaPixels) {
-        imageModal.croppedAreaPixels = croppedAreaPixels;
+    async function handleCropComplete(croppedArea) {
+        console.log('handleCropComplete called with:', { croppedArea });
+        imageModal.croppedAreaPixels = croppedArea.pixels;
     }
 
     async function cropAndUpload() {
@@ -85,44 +86,62 @@
 
             const { x, y, width, height } = imageModal.croppedAreaPixels;
             
+            console.log('Crop area:', { x, y, width, height });
+            console.log('Image dimensions:', { width: img.naturalWidth, height: img.naturalHeight });
+            
             // Ensure canvas dimensions are valid
             if (width <= 0 || height <= 0) {
                 addNotification('error', 'Invalid crop dimensions');
                 return;
             }
 
+            // Ensure crop area is within image bounds
+            if (x < 0 || y < 0 || x + width > img.naturalWidth || y + height > img.naturalHeight) {
+                addNotification('error', 'Crop area exceeds image bounds');
+                return;
+            }
+
             canvas.width = Math.round(width);
             canvas.height = Math.round(height);
 
+            console.log('Canvas dimensions:', { width: canvas.width, height: canvas.height });
+
             // Clear canvas and draw the cropped portion
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Test if we can draw anything to canvas first
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 0, 10, 10);
+            
             ctx.drawImage(
                 img, 
                 Math.round(x), Math.round(y), Math.round(width), Math.round(height),
                 0, 0, canvas.width, canvas.height
             );
+            
+            console.log('Canvas data after drawing:', ctx.getImageData(0, 0, Math.min(10, canvas.width), Math.min(10, canvas.height)));
 
             // Convert to blob with better error handling
             try {
-                const blob = await new Promise((resolve, reject) => {
+                const blob:Blob = await new Promise((resolve, reject) => {
                     canvas.toBlob((result) => {
                         if (result) {
                             resolve(result);
                         } else {
                             reject(new Error('Canvas toBlob returned null'));
                         }
-                    }, 'image/png');
+                    }, 'image/webp');
                 });
 
                 console.log('Created blob:', blob.size, 'bytes');
-                const file = new File([blob], 'cropped-image.png', { type: 'image/png' });
+                const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
                 await uploadImage(imageModal.appName, file);
-            } catch (blobError) {
+            } catch (blobError:any) {
                 console.error('Blob creation error:', blobError);
                 addNotification('error', `Failed to create image blob: ${blobError.message}`);
             }
 
-        } catch (error) {
+        } catch (error:any) {
             console.error('Error cropping image:', error);
             addNotification('error', `Failed to crop image: ${error.message}`);
         }
