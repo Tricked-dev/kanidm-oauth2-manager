@@ -2,6 +2,7 @@
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { kaniRequest } from '../utils';
+	import Cropper from 'svelte-easy-crop';
 
 	const { data } = $props();
 
@@ -34,6 +35,7 @@
 		file?: File;
 		imageSrc?: string;
 		cropResult?: { blob: Blob; url: string };
+		croppedAreaPixels?: any;
 	}>({
 		show: false,
 		appName: '',
@@ -46,6 +48,13 @@
 		redirectUrls: '',
 		type: 'basic' as 'basic' | 'public'
 	});
+
+	let crop = { x: 0, y: 0 };
+	let zoom = 1;
+
+    async function handleCropComplete() {
+        // use the crop and zoom variables to determine what area the user selected
+    }
 
 	function addNotification(type: 'success' | 'error' | 'info', message: string, timeout = 5000) {
 		const id = Math.random().toString(36).substr(2, 9);
@@ -169,40 +178,25 @@
 			return;
 		}
 
-		// For SVG and GIF, upload directly without cropping
+		// For SVG and GIF, validate size then upload directly
 		if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+			if (file.size > 256 * 1024) {
+				addNotification('error', 'Image must be less than 256 KB');
+				target.value = '';
+				return;
+			}
 			await uploadImage(imageModal.appName, file);
 			target.value = '';
 			return;
 		}
 
-		// For other formats, check dimensions and open cropper if needed
-		const img = new Image();
-		const imageSrc = URL.createObjectURL(file);
-
-		img.onload = async () => {
-			URL.revokeObjectURL(imageSrc);
-
-			// If already square and within limits, upload directly
-			if (img.width === img.height && img.width <= 1024) {
-				await uploadImage(imageModal.appName, file);
-			} else {
-				// Open cropper
-				imageModal = {
-					...imageModal,
-					mode: 'crop',
-					file,
-					imageSrc: URL.createObjectURL(file)
-				};
-			}
+		// For PNG/JPG/WebP, always open cropper for processing
+		imageModal = {
+			...imageModal,
+			mode: 'crop',
+			file,
+			imageSrc: URL.createObjectURL(file)
 		};
-
-		img.onerror = () => {
-			URL.revokeObjectURL(imageSrc);
-			addNotification('error', 'Invalid image file');
-		};
-
-		img.src = imageSrc;
 		target.value = '';
 	}
 
@@ -210,7 +204,7 @@
 		try {
 			// Create FormData for multipart upload
 			const formData = new FormData();
-            console.log(file.type)
+			console.log(file.type);
 			formData.append('image', file);
 
 			const response = await kaniRequest(fetch, {
@@ -231,7 +225,7 @@
 				addNotification('error', errorMessage);
 			}
 		} catch (error) {
-            console.error(error)
+			console.error(error);
 			addNotification('error', 'Network error while uploading image');
 		}
 	}
@@ -364,11 +358,11 @@
 		}
 	}
 
-    onMount(() => {
-        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-        if(!link)return;
-        link.href = "/favicon.png"
-    })
+	onMount(() => {
+		const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+		if (!link) return;
+		link.href = '/favicon.png';
+	});
 </script>
 
 <!-- Notification Toast Container -->
@@ -903,13 +897,27 @@
 			{:else if imageModal.mode === 'crop'}
 				<div class="py-4">
 					<p class="mb-4">Crop your image to make it square (1:1 aspect ratio):</p>
-					<!-- Image cropper will be added here when implementing svelte-easy-crop -->
-					<div class="bg-base-200 rounded-lg p-8 text-center">
-						<p class="text-base-content/60">Image cropper will be implemented here</p>
-						<p class="text-base-content/40 mt-2 text-sm">
-							For now, please use a square image (same width and height)
-						</p>
-					</div>
+					{#if imageModal.imageSrc}
+						<Cropper image={imageModal.imageSrc} oncropcomplete={handleCropComplete} />
+						<div class="alert alert-info mt-4">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								class="stroke-info h-6 w-6 shrink-0"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								></path></svg
+							>
+							<div class="text-sm">
+								Image will be converted to WebP format and resized to max 1024px. If still too
+								large, it will be resized to 512px.
+							</div>
+						</div>
+					{/if}
 				</div>
 			{:else}
 				{@const app = data.apps.body.find((a) => a.attrs?.name[0] === imageModal.appName)}
