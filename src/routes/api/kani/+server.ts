@@ -46,7 +46,7 @@ export const POST: RequestHandler = async ({ request }) => {
         }
     }
     if (import.meta.env.DEV) {
-        console.log("fetching path:", `${env.API_BASE_URL}/${data.path}`);
+        console.log("fetching path:", `${env.KANIDM_BASE_URL}/${data.path}`);
     }
     const result = await fetch(
         `${env.KANIDM_BASE_URL}/${data.path}`,

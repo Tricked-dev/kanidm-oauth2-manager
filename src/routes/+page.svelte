@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { invalidate } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 	import { kaniRequest } from '../utils';
 	import Toaster from '$lib/compoents/Toaster.svelte';
 	import ScopeMapModal from '$lib/modals/ScopeMapModal.svelte';
@@ -108,10 +107,10 @@
 				method: 'POST',
 				formData: formData
 			});
+			await invalidateAll();
 
 			if (response.status === 200) {
 				addNotification('success', `Successfully uploaded image for ${appName}`);
-				await invalidate(() => true);
 			} else {
 				let errorMessage = 'Failed to upload image';
 				if (response.body && typeof response.body === 'string') {
@@ -122,6 +121,8 @@
 		} catch (error) {
 			console.error(error);
 			addNotification('error', 'Network error while uploading image');
+		} finally {
+			await invalidateAll();
 		}
 	}
 
@@ -241,11 +242,12 @@
 			}
 		});
 
+		await invalidateAll();
+
 		if (response.status === 200) {
 			editingApps[appName] = false;
 			delete editValues[appName];
 			addNotification('success', `Successfully updated ${appName}`);
-			await invalidate(() => true);
 		} else {
 			let errorMessage = 'Failed to update application';
 			if (
@@ -281,7 +283,7 @@
 				}
 			}
 		});
-
+		await invalidateAll();
 		if (response.status === 200) {
 			showCreateForm = false;
 			createValues = {
@@ -292,7 +294,7 @@
 				type: 'basic'
 			};
 			addNotification('success', `Successfully created application: ${createValues.name}`);
-			await invalidate(() => true);
+			await invalidateAll();
 		} else {
 			let errorMessage = 'Failed to create application';
 			if (response.body && typeof response.body === 'string') {
@@ -307,12 +309,6 @@
 			addNotification('error', errorMessage);
 		}
 	}
-
-	onMount(() => {
-		const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-		if (!link) return;
-		link.href = '/favicon.png';
-	});
 </script>
 
 <Toaster {notifications} {removeNotification} />
@@ -439,7 +435,7 @@
 			<div class="card bg-base-300 flex w-full flex-col">
 				<div class="card-body flex flex-1 flex-col">
 					<h2 class="card-title mb-4 flex items-center gap-2">
-						<div class="tooltip" data-tip={confidential ? "Confidential client" : "Public client"}>
+						<div class="tooltip" data-tip={confidential ? 'Confidential client' : 'Public client'}>
 							{#if confidential}
 								<Lock />
 							{:else}
