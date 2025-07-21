@@ -59,9 +59,6 @@ export async function getCachedToken(): Promise<string> {
 
     // Check if we have a valid cached token
     if (tokenCache && tokenCache.expires > now) {
-        if (import.meta.env.DEV) {
-            console.log("Using cached token");
-        }
         return tokenCache.token;
     }
 

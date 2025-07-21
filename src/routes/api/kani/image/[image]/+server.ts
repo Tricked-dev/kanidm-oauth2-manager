@@ -19,9 +19,7 @@ export const GET: RequestHandler = async ({ params }) => {
             },
         },
     );
-    if (import.meta.env.DEV) {
-        console.log(result);
-    }
+
     if (!result.ok) {
         return new Response("Image not found", { status: result.status });
     }
