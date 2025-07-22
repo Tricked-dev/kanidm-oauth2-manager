@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '00 4 01 * *'  # At 04:00 on day-of-month 01.
 
 env:
   REGISTRY: ghcr.io

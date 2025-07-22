@@ -2,7 +2,7 @@
 
 <img width="1554" height="1312" alt="image" src="https://github.com/user-attachments/assets/4f3b4943-9900-46ad-9ded-07e99b32793b" />
 
-A web-based management interface for Kanidm OAuth2 applications. This SvelteKit
+A web-based management interface for [Kanidm](https://kanidm.com/) OAuth2 applications. This SvelteKit
 application provides an intuitive interface to view and manage OAuth2
 applications configured in your Kanidm identity management system.
 
