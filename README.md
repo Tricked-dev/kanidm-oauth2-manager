@@ -2,7 +2,6 @@
 
 <img width="1554" height="1312" alt="image" src="https://github.com/user-attachments/assets/4f3b4943-9900-46ad-9ded-07e99b32793b" />
 
-
 A web-based management interface for Kanidm OAuth2 applications. This SvelteKit
 application provides an intuitive interface to view and manage OAuth2
 applications configured in your Kanidm identity management system.
@@ -14,7 +13,6 @@ applications configured in your Kanidm identity management system.
 - Display important OAuth2 settings including redirect URLs, scopes, and
   cryptographic settings
 - Responsive design using Tailwind CSS and DaisyUI components
-- Session-based authentication with token caching
 - Support for image uploads and binary data handling
 
 ## Architecture
@@ -91,6 +89,14 @@ docker run -d \
   ghcr.io/tricked-dev/kanidm-oauth2-manager:latest
 ```
 
+## Adding login shield
+
+The application currently has no way to secure it built in you can use
+[caddy with the security plugin](https://tricked.dev/blog/kanidm-caddy-security/)
+or [oauth2 proxy](https://github.com/oauth2-proxy/oauth2-proxy) to secure the
+site instead. pull requests that add built in authentication are welcomed (MUST
+have oidc support).
+
 ## Development Setup
 
 ### Prerequisites
@@ -160,8 +166,6 @@ including:
    are correct
 2. **Connection errors**: Ensure `KANIDM_BASE_URL` is accessible from the
    container
-3. **Permission denied**: Confirm the user account has administrative privileges
-   in Kanidm
 
 ### Logs
 
@@ -173,4 +177,4 @@ docker logs kanidm-oauth2-manager
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MPL-2.0 License.
