@@ -37,5 +37,17 @@ export async function kaniRequest<T>(
         body: requestBody,
     });
 
-    return await result.json();
+    const response = await result.json();
+
+    // Debug logging in development mode
+    if (import.meta.env.DEV && response.status >= 400) {
+        console.group(`🚨 Kanidm API Error: ${data.method || 'GET'} ${data.path}`);
+        console.error('Status:', response.status);
+        console.error('Request Body:', data.body);
+        console.error('Response Body:', JSON.stringify(response.body));
+        console.error('Full Request:', JSON.stringify(data));
+        console.groupEnd();
+    }
+
+    return response;
 }

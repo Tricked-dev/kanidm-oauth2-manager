@@ -48,6 +48,25 @@
 		groupName: '',
 		mode: 'add'
 	});
+	let showCredentialForm = $state<{
+		show: boolean;
+		userName: string;
+		mode: 'status' | 'update_intent' | 'update';
+		ttl?: number;
+	}>({
+		show: false,
+		userName: '',
+		mode: 'status'
+	});
+	let showRadiusForm = $state<{ show: boolean; userName: string }>({
+		show: false,
+		userName: ''
+	});
+	let showCertificateForm = $state<{ show: boolean; userName: string; certificate: string }>({
+		show: false,
+		userName: '',
+		certificate: ''
+	});
 	let createValues = $state({
 		name: '',
 		displayName: '',
@@ -236,21 +255,16 @@
 	}
 
 	async function addSshKey() {
-		if (!showSshKeyForm.userName || !showSshKeyForm.keyTag || !showSshKeyForm.publicKey) {
-			addNotification('error', 'Username, key tag, and public key are required');
+		if (!showSshKeyForm.userName || !showSshKeyForm.publicKey) {
+			addNotification('error', 'Username and public key are required');
 			return;
 		}
 
-		// API expects an array of SSH key objects with tag and key
-		const sshKeyObject = {
-			tag: showSshKeyForm.keyTag,
-			key: showSshKeyForm.publicKey.trim()
-		};
-
+		// API expects an array of SSH key strings
 		const response = await kaniRequest(fetch, {
 			path: `v1/person/${showSshKeyForm.userName}/_ssh_pubkeys`,
 			method: 'POST',
-			body: [sshKeyObject]
+			body: [showSshKeyForm.publicKey.trim()]
 		});
 
 		if (response.status === 200) {
@@ -313,7 +327,7 @@
 		const response = await kaniRequest(fetch, {
 			path: `v1/person/${showPasswordForm.userName}/_unix/_credential`,
 			method: 'PUT',
-			body: { password: showPasswordForm.password }
+			body: { value: showPasswordForm.password }
 		});
 
 		if (response.status === 200) {
@@ -384,6 +398,128 @@
 				errorMessage = response.body.replace(/"/g, '');
 			}
 			addNotification('error', errorMessage);
+		}
+	}
+
+	function openCredentialForm(userName: string, mode: 'status' | 'update_intent' | 'update') {
+		showCredentialForm = { show: true, userName, mode };
+	}
+
+	async function getCredentialStatus(userName: string) {
+		try {
+			const result = await kaniRequest(fetch, {
+				path: `v1/person/${userName}/_credential/_status`,
+				method: 'GET'
+			});
+
+			if (result.status === 200 && result.body) {
+				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
+				addNotification('success', `Credential status copied to clipboard for ${userName}`);
+			} else {
+				addNotification('error', 'Failed to fetch credential status');
+			}
+		} catch (error) {
+			console.error(error);
+			addNotification('error', 'Failed to copy credential status to clipboard');
+		}
+	}
+
+	async function updateCredentialIntent(userName: string, ttl?: number) {
+		const path = ttl 
+			? `v1/person/${userName}/_credential/_update_intent/${ttl}`
+			: `v1/person/${userName}/_credential/_update_intent`;
+		
+		try {
+			const result = await kaniRequest(fetch, {
+				path,
+				method: 'GET'
+			});
+
+			if (result.status === 200 && result.body) {
+				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
+				addNotification('success', `Credential update intent copied to clipboard for ${userName}`);
+			} else {
+				addNotification('error', 'Failed to get credential update intent');
+			}
+		} catch (error) {
+			console.error(error);
+			addNotification('error', 'Failed to get credential update intent');
+		}
+	}
+
+	function openRadiusForm(userName: string) {
+		showRadiusForm = { show: true, userName };
+	}
+
+	async function getRadiusToken(userName: string) {
+		try {
+			const result = await kaniRequest(fetch, {
+				path: `v1/person/${userName}/_radius/_token`,
+				method: 'GET'
+			});
+
+			if (result.status === 200 && result.body) {
+				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
+				addNotification('success', `RADIUS token copied to clipboard for ${userName}`);
+			} else {
+				addNotification('error', 'Failed to fetch RADIUS token');
+			}
+		} catch (error) {
+			console.error(error);
+			addNotification('error', 'Failed to copy RADIUS token to clipboard');
+		}
+	}
+
+	function openCertificateForm(userName: string) {
+		showCertificateForm = { show: true, userName, certificate: '' };
+	}
+
+	async function addCertificate() {
+		if (!showCertificateForm.userName || !showCertificateForm.certificate) {
+			addNotification('error', 'Username and certificate are required');
+			return;
+		}
+
+		const response = await kaniRequest(fetch, {
+			path: `v1/person/${showCertificateForm.userName}/_certificate`,
+			method: 'POST',
+			body: {
+				attrs: {
+					certificate: [showCertificateForm.certificate.trim()]
+				}
+			}
+		});
+
+		if (response.status === 200) {
+			const userName = showCertificateForm.userName;
+			showCertificateForm = { show: false, userName: '', certificate: '' };
+			addNotification('success', `Successfully added certificate for ${userName}`);
+			await invalidateAll();
+		} else {
+			let errorMessage = 'Failed to add certificate';
+			if (response.body && typeof response.body === 'string') {
+				errorMessage = response.body.replace(/"/g, '');
+			}
+			addNotification('error', errorMessage);
+		}
+	}
+
+	async function identifyUser(userName: string) {
+		try {
+			const result = await kaniRequest(fetch, {
+				path: `v1/person/${userName}/_identify/_user`,
+				method: 'POST'
+			});
+
+			if (result.status === 200 && result.body) {
+				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
+				addNotification('success', `User identification copied to clipboard for ${userName}`);
+			} else {
+				addNotification('error', 'Failed to identify user');
+			}
+		} catch (error) {
+			console.error(error);
+			addNotification('error', 'Failed to identify user');
 		}
 	}
 
@@ -556,21 +692,6 @@
 
 				<div class="space-y-4">
 					<div class="form-control">
-						<label class="label" for="ssh-tag">
-							<span class="label-text font-medium">Key Tag</span>
-							<span class="label-text-alt">Unique identifier for this key</span>
-						</label>
-						<input
-							id="ssh-tag"
-							type="text"
-							class="input input-bordered"
-							placeholder="laptop-key"
-							bind:value={showSshKeyForm.keyTag}
-							required
-						/>
-					</div>
-
-					<div class="form-control">
 						<label class="label" for="ssh-pubkey">
 							<span class="label-text font-medium">Public Key</span>
 							<span class="label-text-alt">SSH public key content</span>
@@ -679,6 +800,45 @@
 							showGroupForm.mode === 'add' ? addUserToGroup() : removeUserFromGroup()}
 					>
 						{showGroupForm.mode === 'add' ? 'Add to Group' : 'Remove from Group'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Certificate Management Modal -->
+	{#if showCertificateForm.show}
+		<div class="modal modal-open">
+			<div class="modal-box max-w-2xl">
+				<h3 class="text-lg font-bold">Add Certificate</h3>
+				<p class="py-4">
+					Add certificate for user <strong>{showCertificateForm.userName}</strong>
+				</p>
+
+				<div class="form-control">
+					<label class="label" for="certificate">
+						<span class="label-text font-medium">Certificate</span>
+						<span class="label-text-alt">PEM-formatted certificate</span>
+					</label>
+					<textarea
+						id="certificate"
+						class="textarea textarea-bordered h-32 font-mono text-sm"
+						placeholder="-----BEGIN CERTIFICATE-----&#10;MIICxjCCAa4CCQC...&#10;-----END CERTIFICATE-----"
+						bind:value={showCertificateForm.certificate}
+						required
+					></textarea>
+				</div>
+
+				<div class="modal-action">
+					<button
+						class="btn btn-outline"
+						onclick={() =>
+							(showCertificateForm = { show: false, userName: '', certificate: '' })}
+					>
+						Cancel
+					</button>
+					<button class="btn btn-primary" onclick={() => addCertificate()}>
+						Add Certificate
 					</button>
 				</div>
 			</div>
@@ -898,6 +1058,21 @@
 										</li>
 									{/if}
 									<li><button onclick={() => toggleEditMode(userName)}>Edit User</button></li>
+									<li>
+										<button onclick={() => getCredentialStatus(userName)}>Get Credential Status</button>
+									</li>
+									<li>
+										<button onclick={() => updateCredentialIntent(userName)}>Update Credential Intent</button>
+									</li>
+									<li>
+										<button onclick={() => getRadiusToken(userName)}>Get RADIUS Token</button>
+									</li>
+									<li>
+										<button onclick={() => openCertificateForm(userName)}>Add Certificate</button>
+									</li>
+									<li>
+										<button onclick={() => identifyUser(userName)}>Identify User</button>
+									</li>
 									<li>
 										<button class="text-error" onclick={() => deleteUser(userName)}>Delete User</button>
 									</li>
