@@ -124,16 +124,18 @@
 			body: { attrs }
 		});
 
-		await invalidateAll();
-
 		if (response.status === 200) {
+			const createdUserName = createValues.name;
 			showCreateForm = false;
 			createValues = { name: '', displayName: '', legalName: '', mail: '' };
-			addNotification('success', `Successfully created user: ${createValues.name}`);
+			addNotification('success', `Successfully created user: ${createdUserName}`);
+			await invalidateAll();
 		} else {
 			let errorMessage = 'Failed to create user';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
+			if (response.status === 403) {
+				errorMessage = 'Access denied: You do not have permission to create users. Please contact your Kanidm administrator.';
+			} else if (response.body && typeof response.body === 'string') {
+				errorMessage = response.body.replace(/"/g, '');
 			} else if (
 				response.body &&
 				typeof response.body === 'object' &&
@@ -173,34 +175,29 @@
 	}
 
 	async function enableUnixExtension() {
-		if (!showUnixForm.userName || !showUnixForm.uidNumber) {
-			addNotification('error', 'Username and UID number are required');
+		if (!showUnixForm.userName) {
+			addNotification('error', 'Username is required');
 			return;
 		}
 
-		const body: any = {
-			uidnumber: parseInt(showUnixForm.uidNumber)
-		};
+		// According to the API spec, AccountUnixExtend only accepts gidnumber and shell
+		const body: any = {};
 
 		if (showUnixForm.gidNumber) {
 			body.gidnumber = parseInt(showUnixForm.gidNumber);
 		}
-		if (showUnixForm.homeDirectory) {
-			body.homedirectory = showUnixForm.homeDirectory;
-		}
 		if (showUnixForm.loginShell) {
-			body.loginshell = showUnixForm.loginShell;
+			body.shell = showUnixForm.loginShell;
 		}
 
 		const response = await kaniRequest(fetch, {
-			path: `v1/account/${showUnixForm.userName}/_unix`,
+			path: `v1/person/${showUnixForm.userName}/_unix`,
 			method: 'POST',
 			body
 		});
 
-		await invalidateAll();
-
 		if (response.status === 200) {
+			const userName = showUnixForm.userName;
 			showUnixForm = {
 				show: false,
 				userName: '',
@@ -209,17 +206,24 @@
 				homeDirectory: '',
 				loginShell: '/bin/bash'
 			};
-			addNotification('success', `Successfully enabled Unix extension for ${showUnixForm.userName}`);
+			addNotification('success', `Successfully enabled Unix extension for ${userName}`);
+			await invalidateAll();
 		} else {
-			addNotification('error', 'Failed to enable Unix extension');
+			let errorMessage = 'Failed to enable Unix extension';
+			if (response.body && typeof response.body === 'string') {
+				errorMessage = response.body;
+			} else if (response.body && typeof response.body === 'object') {
+				errorMessage = JSON.stringify(response.body);
+			}
+			addNotification('error', errorMessage);
 		}
 	}
 
 	async function getUnixToken(userName: string) {
 		try {
 			const result = await kaniRequest(fetch, {
-				path: `v1/account/${userName}/_unix/_token`,
-				method: 'POST'
+				path: `v1/person/${userName}/_unix/_token`,
+				method: 'GET'
 			});
 
 			if (result.status === 200 && result.body) {
@@ -246,16 +250,16 @@
 		}
 
 		const response = await kaniRequest(fetch, {
-			path: `v1/account/${showSshKeyForm.userName}/_ssh_pubkeys/${showSshKeyForm.keyTag}`,
+			path: `v1/person/${showSshKeyForm.userName}/_ssh_pubkeys/${showSshKeyForm.keyTag}`,
 			method: 'POST',
 			body: [showSshKeyForm.publicKey.trim()]
 		});
 
-		await invalidateAll();
-
 		if (response.status === 200) {
+			const userName = showSshKeyForm.userName;
 			showSshKeyForm = { show: false, userName: '', keyTag: '', publicKey: '' };
-			addNotification('success', `Successfully added SSH key for ${showSshKeyForm.userName}`);
+			addNotification('success', `Successfully added SSH key for ${userName}`);
+			await invalidateAll();
 		} else {
 			addNotification('error', 'Failed to add SSH key');
 		}
@@ -263,14 +267,13 @@
 
 	async function removeSshKey(userName: string, keyTag: string) {
 		const response = await kaniRequest(fetch, {
-			path: `v1/account/${userName}/_ssh_pubkeys/${keyTag}`,
+			path: `v1/person/${userName}/_ssh_pubkeys/${keyTag}`,
 			method: 'DELETE'
 		});
 
-		await invalidateAll();
-
 		if (response.status === 200) {
 			addNotification('success', `Successfully removed SSH key ${keyTag} for ${userName}`);
+			await invalidateAll();
 		} else {
 			addNotification('error', 'Failed to remove SSH key');
 		}
@@ -279,7 +282,7 @@
 	async function getSshKeys(userName: string) {
 		try {
 			const result = await kaniRequest(fetch, {
-				path: `v1/account/${userName}/_ssh_pubkeys`,
+				path: `v1/person/${userName}/_ssh_pubkeys`,
 				method: 'GET'
 			});
 
@@ -306,16 +309,16 @@
 		}
 
 		const response = await kaniRequest(fetch, {
-			path: `v1/account/${showPasswordForm.userName}/_unix/_auth`,
-			method: 'POST',
+			path: `v1/person/${showPasswordForm.userName}/_unix/_credential`,
+			method: 'PUT',
 			body: { password: showPasswordForm.password }
 		});
 
-		await invalidateAll();
-
 		if (response.status === 200) {
+			const userName = showPasswordForm.userName;
 			showPasswordForm = { show: false, userName: '', password: '' };
-			addNotification('success', `Successfully reset password for ${showPasswordForm.userName}`);
+			addNotification('success', `Successfully reset password for ${userName}`);
+			await invalidateAll();
 		} else {
 			addNotification('error', 'Failed to reset password');
 		}
@@ -421,20 +424,9 @@
 				</p>
 
 				<div class="space-y-4">
-					<div class="form-control">
-						<label class="label" for="unix-uid">
-							<span class="label-text font-medium">UID Number</span>
-							<span class="label-text-alt">Unix user identifier</span>
-						</label>
-						<input
-							id="unix-uid"
-							type="number"
-							class="input input-bordered"
-							placeholder="1000"
-							bind:value={showUnixForm.uidNumber}
-							min="1000"
-							required
-						/>
+					<div class="alert alert-info">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+						<span>Note: UID number and home directory are automatically assigned by the system.</span>
 					</div>
 
 					<div class="form-control">
@@ -449,19 +441,6 @@
 							placeholder="1000"
 							bind:value={showUnixForm.gidNumber}
 							min="1000"
-						/>
-					</div>
-
-					<div class="form-control">
-						<label class="label" for="unix-home">
-							<span class="label-text font-medium">Home Directory</span>
-							<span class="label-text-alt">User's home directory path</span>
-						</label>
-						<input
-							id="unix-home"
-							type="text"
-							class="input input-bordered font-mono"
-							bind:value={showUnixForm.homeDirectory}
 						/>
 					</div>
 
