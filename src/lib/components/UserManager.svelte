@@ -37,6 +37,17 @@
 		userName: '',
 		password: ''
 	});
+	let showGroupForm = $state<{
+		show: boolean;
+		userName: string;
+		groupName: string;
+		mode: 'add' | 'remove';
+	}>({
+		show: false,
+		userName: '',
+		groupName: '',
+		mode: 'add'
+	});
 	let createValues = $state({
 		name: '',
 		displayName: '',
@@ -219,25 +230,6 @@
 		}
 	}
 
-	async function getUnixToken(userName: string) {
-		try {
-			const result = await kaniRequest(fetch, {
-				path: `v1/person/${userName}/_unix/_token`,
-				method: 'GET'
-			});
-
-			if (result.status === 200 && result.body) {
-				// Copy the token info to clipboard as JSON
-				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
-				addNotification('success', `Unix token info copied to clipboard for ${userName}`);
-			} else {
-				addNotification('error', 'Failed to fetch Unix token');
-			}
-		} catch (error) {
-			console.error(error);
-			addNotification('error', 'Failed to copy Unix token to clipboard');
-		}
-	}
 
 	function openSshKeyForm(userName: string) {
 		showSshKeyForm = { show: true, userName, keyTag: '', publicKey: '' };
@@ -249,10 +241,16 @@
 			return;
 		}
 
+		// API expects an array of SSH key objects with tag and key
+		const sshKeyObject = {
+			tag: showSshKeyForm.keyTag,
+			key: showSshKeyForm.publicKey.trim()
+		};
+
 		const response = await kaniRequest(fetch, {
-			path: `v1/person/${showSshKeyForm.userName}/_ssh_pubkeys/${showSshKeyForm.keyTag}`,
+			path: `v1/person/${showSshKeyForm.userName}/_ssh_pubkeys`,
 			method: 'POST',
-			body: [showSshKeyForm.publicKey.trim()]
+			body: [sshKeyObject]
 		});
 
 		if (response.status === 200) {
@@ -261,7 +259,11 @@
 			addNotification('success', `Successfully added SSH key for ${userName}`);
 			await invalidateAll();
 		} else {
-			addNotification('error', 'Failed to add SSH key');
+			let errorMessage = 'Failed to add SSH key';
+			if (response.body && typeof response.body === 'string') {
+				errorMessage = response.body.replace(/"/g, '');
+			}
+			addNotification('error', errorMessage);
 		}
 	}
 
@@ -321,6 +323,67 @@
 			await invalidateAll();
 		} else {
 			addNotification('error', 'Failed to reset password');
+		}
+	}
+
+	function openGroupForm(userName: string, mode: 'add' | 'remove', groupName?: string) {
+		showGroupForm = {
+			show: true,
+			userName,
+			groupName: groupName || '',
+			mode
+		};
+	}
+
+	async function addUserToGroup() {
+		if (!showGroupForm.userName || !showGroupForm.groupName) {
+			addNotification('error', 'Username and group name are required');
+			return;
+		}
+
+		const response = await kaniRequest(fetch, {
+			path: `v1/group/${showGroupForm.groupName}/_attr/member`,
+			method: 'POST',
+			body: [showGroupForm.userName]
+		});
+
+		if (response.status === 200) {
+			const { userName, groupName } = showGroupForm;
+			showGroupForm = { show: false, userName: '', groupName: '', mode: 'add' };
+			addNotification('success', `Successfully added ${userName} to group ${groupName}`);
+			await invalidateAll();
+		} else {
+			let errorMessage = 'Failed to add user to group';
+			if (response.body && typeof response.body === 'string') {
+				errorMessage = response.body.replace(/"/g, '');
+			}
+			addNotification('error', errorMessage);
+		}
+	}
+
+	async function removeUserFromGroup() {
+		if (!showGroupForm.userName || !showGroupForm.groupName) {
+			addNotification('error', 'Username and group name are required');
+			return;
+		}
+
+		const response = await kaniRequest(fetch, {
+			path: `v1/group/${showGroupForm.groupName}/_attr/member`,
+			method: 'DELETE',
+			body: [showGroupForm.userName]
+		});
+
+		if (response.status === 200) {
+			const { userName, groupName } = showGroupForm;
+			showGroupForm = { show: false, userName: '', groupName: '', mode: 'add' };
+			addNotification('success', `Successfully removed ${userName} from group ${groupName}`);
+			await invalidateAll();
+		} else {
+			let errorMessage = 'Failed to remove user from group';
+			if (response.body && typeof response.body === 'string') {
+				errorMessage = response.body.replace(/"/g, '');
+			}
+			addNotification('error', errorMessage);
 		}
 	}
 
@@ -572,6 +635,56 @@
 		</div>
 	{/if}
 
+	<!-- Group Management Modal -->
+	{#if showGroupForm.show}
+		<div class="modal modal-open">
+			<div class="modal-box">
+				<h3 class="text-lg font-bold">
+					{showGroupForm.mode === 'add' ? 'Add User to Group' : 'Remove User from Group'}
+				</h3>
+				<p class="py-4">
+					{showGroupForm.mode === 'add'
+						? `Add user ${showGroupForm.userName} to a group`
+						: `Remove user ${showGroupForm.userName} from group ${showGroupForm.groupName}`}
+				</p>
+
+				{#if showGroupForm.mode === 'add'}
+					<div class="form-control">
+						<label class="label" for="group-name">
+							<span class="label-text font-medium">Group Name</span>
+							<span class="label-text-alt">Name of the group to add user to</span>
+						</label>
+						<input
+							id="group-name"
+							type="text"
+							class="input input-bordered"
+							placeholder="my-group"
+							bind:value={showGroupForm.groupName}
+							required
+						/>
+					</div>
+				{/if}
+
+				<div class="modal-action">
+					<button
+						class="btn btn-outline"
+						onclick={() =>
+							(showGroupForm = { show: false, userName: '', groupName: '', mode: 'add' })}
+					>
+						Cancel
+					</button>
+					<button
+						class="btn {showGroupForm.mode === 'add' ? 'btn-primary' : 'btn-error'}"
+						onclick={() =>
+							showGroupForm.mode === 'add' ? addUserToGroup() : removeUserFromGroup()}
+					>
+						{showGroupForm.mode === 'add' ? 'Add to Group' : 'Remove from Group'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 		{#each data.users?.body || [] as user}
 			{@const userName = user.attrs?.name[0]}
@@ -653,27 +766,39 @@
 									</div>
 								{/if}
 
-								{#if user.attrs?.memberof?.length}
-									<div class="bg-base-100 rounded-lg p-4">
-										<div class="text-base-content/70 mb-2 text-sm font-medium">Member of Groups</div>
-										<div class="space-y-1">
+								<div class="bg-base-100 rounded-lg p-4">
+									<div class="mb-3 flex items-center justify-between">
+										<div class="text-base-content/70 text-sm font-medium">Group Membership</div>
+										<button
+											class="btn btn-sm btn-primary"
+											onclick={() => openGroupForm(userName, 'add')}
+										>
+											Add to Group
+										</button>
+									</div>
+									{#if user.attrs?.memberof?.length}
+										<div class="space-y-2">
 											{#each user.attrs.memberof as group}
-												<div class="badge badge-outline badge-sm">{group}</div>
+												<div class="bg-base-200 flex items-center justify-between rounded p-2">
+													<span class="text-sm">{group}</span>
+													<button
+														class="btn btn-xs btn-error"
+														onclick={() => openGroupForm(userName, 'remove', group)}
+													>
+														Remove
+													</button>
+												</div>
 											{/each}
 										</div>
-									</div>
-								{/if}
+									{:else}
+										<div class="text-base-content/60 text-sm italic">Not a member of any groups</div>
+									{/if}
+								</div>
 
 								{#if isUnixEnabled}
 									<div class="bg-base-100 rounded-lg p-4">
 										<div class="mb-2 flex items-center justify-between">
 											<div class="text-base-content/70 text-sm font-medium">Unix Extension</div>
-											<button
-												class="btn btn-sm btn-secondary"
-												onclick={() => getUnixToken(userName)}
-											>
-												Get Unix Token
-											</button>
 										</div>
 										<div class="space-y-1 text-xs text-base-content/70">
 											{#if user.attrs?.uidnumber}
