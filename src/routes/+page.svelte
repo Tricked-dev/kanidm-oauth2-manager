@@ -1,75 +1,15 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import { kaniRequest } from '../utils';
+	import Oauth2Manager from '$lib/components/Oauth2Manager.svelte';
+	import GroupManager from '$lib/components/GroupManager.svelte';
+	import UserManager from '$lib/components/UserManager.svelte';
 	import Toaster from '$lib/compoents/Toaster.svelte';
-	import ScopeMapModal from '$lib/modals/ScopeMapModal.svelte';
-	import ImageModal from '$lib/modals/ImageModal.svelte';
-	import DeleteModal from '$lib/modals/DeleteModal.svelte';
-	import Lock from '$lib/icons/Lock.svelte';
-	import Globe from '$lib/icons/Globe.svelte';
 
 	const { data } = $props();
 
-	let editingApps = $state<Record<string, boolean>>({});
-	let editValues = $state<
-		Record<
-			string,
-			{
-				displayName: string;
-				origin: string;
-				redirectUrls: string;
-				secureCrypto: boolean;
-				requirePKCE: boolean;
-			}
-		>
-	>({});
+	let activeTab = $state<'oauth2' | 'groups' | 'users'>('oauth2');
 	let notifications = $state<
 		Array<{ id: string; type: 'success' | 'error' | 'info'; message: string; timeout?: number }>
 	>([]);
-	let showCreateForm = $state(false);
-	let scopeMapModal = $state<{
-		show: boolean;
-		appName: string;
-		mode: 'add' | 'delete';
-		groupName?: string;
-	}>({
-		show: false,
-		appName: '',
-		mode: 'add'
-	});
-	let scopeMapForm = $state({
-		groupName: '',
-		scopes: 'email, profile, openid, groups'
-	});
-	let imageModal = $state<{
-		show: boolean;
-		appName: string;
-		mode: 'upload' | 'crop' | 'delete';
-		file?: File;
-		imageSrc?: string;
-		cropResult?: { blob: Blob; url: string };
-		croppedAreaPixels?: any;
-	}>({
-		show: false,
-		appName: '',
-		mode: 'upload'
-	});
-	let deleteModal = $state<{
-		show: boolean;
-		appName: string;
-		displayName: string;
-	}>({
-		show: false,
-		appName: '',
-		displayName: ''
-	});
-	let createValues = $state({
-		name: '',
-		displayName: '',
-		origin: '',
-		redirectUrls: '',
-		type: 'basic' as 'basic' | 'public'
-	});
 
 	function addNotification(type: 'success' | 'error' | 'info', message: string, timeout = 5000) {
 		const id = Math.random().toString(36).substr(2, 9);
@@ -85,634 +25,111 @@
 	function removeNotification(id: string) {
 		notifications = notifications.filter((n) => n.id !== id);
 	}
-
-	function openScopeMapModal(appName: string, mode: 'add' | 'delete', groupName?: string) {
-		scopeMapModal = { show: true, appName, mode, groupName };
-		if (mode === 'add') {
-			scopeMapForm = { groupName: '', scopes: 'email, profile, openid, groups' };
-		}
-	}
-
-	function openImageModal(appName: string, mode: 'upload' | 'delete') {
-		imageModal = { show: true, appName, mode };
-	}
-
-	async function uploadImage(appName: string, file: File) {
-		try {
-			const formData = new FormData();
-			formData.append('image', file);
-
-			const response = await kaniRequest(fetch, {
-				path: `v1/oauth2/${appName}/_image`,
-				method: 'POST',
-				formData: formData
-			});
-			await invalidateAll();
-
-			if (response.status === 200) {
-				addNotification('success', `Successfully uploaded image for ${appName}`);
-			} else {
-				let errorMessage = 'Failed to upload image';
-				if (response.body && typeof response.body === 'string') {
-					errorMessage = response.body;
-				}
-				addNotification('error', errorMessage);
-			}
-		} catch (error) {
-			console.error(error);
-			addNotification('error', 'Network error while uploading image');
-		} finally {
-			await invalidateAll();
-		}
-	}
-
-	async function fetchFavicon(appName: string) {
-		const app = data.apps.body.find((a: any) => a.attrs?.name[0] === appName);
-		const origin = app?.attrs?.oauth2_rs_origin_landing?.[0];
-
-		if (!origin) {
-			addNotification('error', 'No homepage URL configured for this application');
-			return;
-		}
-
-		try {
-			const baseUrl = new URL(origin).origin;
-			addNotification('info', `Fetching favicon from ${baseUrl}...`);
-
-			// Use server-side API to fetch favicon (avoids CORS issues)
-			const response = await fetch('/api/fetch-icon', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ origin: baseUrl })
-			});
-
-			if (response.ok) {
-				const contentType = response.headers.get('content-type');
-				const blob = await response.blob();
-
-				if (contentType && contentType.startsWith('image/')) {
-					// Create a File object with appropriate extension
-					const extension = contentType.split('/')[1] || 'png';
-					const file = new File([blob], `favicon.${extension}`, { type: contentType });
-
-					// Upload the image
-					await uploadImage(appName, file);
-				} else {
-					addNotification('error', 'Retrieved content is not a valid image');
-				}
-			} else {
-				const errorData = await response.json().catch(() => ({}));
-				const errorMessage = errorData.error || 'Failed to fetch favicon from server';
-				addNotification('error', errorMessage);
-			}
-		} catch (error) {
-			console.error('Error fetching favicon:', error);
-			addNotification('error', 'Network error while fetching favicon');
-		}
-	}
-
-	async function copySecret(appName: string) {
-		try {
-			const result = await kaniRequest<string>(fetch, {
-				path: `v1/oauth2/${appName}/_basic_secret`,
-				method: 'GET'
-			});
-
-			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(result.body);
-				addNotification('success', `Secret copied to clipboard for ${appName}`);
-			} else {
-				addNotification('error', 'Failed to fetch secret');
-			}
-		} catch (error) {
-			console.error(error);
-			addNotification('error', 'Failed to copy secret to clipboard');
-		}
-	}
-
-	function openDeleteModal(appName: string, displayName: string) {
-		deleteModal = { show: true, appName, displayName };
-	}
-
-	function toggleEditMode(appName: string) {
-		if (editingApps[appName]) {
-			// Cancel editing
-			editingApps[appName] = false;
-			delete editValues[appName];
-		} else {
-			// Start editing
-			const app = data.apps.body.find((a: any) => a.attrs?.name[0] === appName);
-			editingApps[appName] = true;
-			editValues[appName] = {
-				displayName: app?.attrs?.displayname?.[0] || '',
-				origin: app?.attrs?.oauth2_rs_origin_landing?.[0] || '',
-				redirectUrls:
-					app?.attrs?.oauth2_rs_origin
-						?.map((url) => url.trim())
-						?.filter((url) => url.length > 0)
-						?.join('\n') || '',
-				secureCrypto: app?.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] !== 'true',
-				requirePKCE: app?.attrs?.oauth2_allow_insecure_client_disable_pkce?.[0] !== 'true'
-			};
-		}
-	}
-
-	async function saveChanges(appName: string) {
-		const values = editValues[appName];
-		if (!values) return;
-
-		const redirectUrls = values.redirectUrls
-			.split('\n')
-			.map((url) => url.trim())
-			.filter((url) => url.length > 0 && url.startsWith('http'));
-
-		const response = await kaniRequest(fetch, {
-			path: `v1/oauth2/${appName}`,
-			method: 'PATCH',
-			body: {
-				attrs: {
-					displayName: [values.displayName.trim()],
-					oauth2_rs_origin_landing: [values.origin.trim()],
-					oauth2_rs_origin: redirectUrls,
-					oauth2_jwt_legacy_crypto_enable: [values.secureCrypto ? 'false' : 'true'],
-					oauth2_allow_insecure_client_disable_pkce: [values.requirePKCE ? 'false' : 'true']
-				}
-			}
-		});
-
-		await invalidateAll();
-
-		if (response.status === 200) {
-			editingApps[appName] = false;
-			delete editValues[appName];
-			addNotification('success', `Successfully updated ${appName}`);
-		} else {
-			let errorMessage = 'Failed to update application';
-			if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
-		}
-	}
-
-	async function createApplication() {
-		if (!createValues.name || !createValues.displayName || !createValues.origin) {
-			return;
-		}
-
-		const redirectUrls = createValues.redirectUrls
-			.split('\n')
-			.map((url) => url.trim())
-			.filter((url) => url.length > 0 && url.startsWith('http'));
-
-		const response = await kaniRequest(fetch, {
-			path: `v1/oauth2/_${createValues.type}`,
-			method: 'POST',
-			body: {
-				attrs: {
-					name: [createValues.name.trim().toLowerCase()],
-					oauth2_rs_origin_landing: [createValues.origin.trim()],
-					displayname: [createValues.displayName.trim()],
-					oauth2_rs_origin: redirectUrls
-				}
-			}
-		});
-		await invalidateAll();
-		if (response.status === 200) {
-			showCreateForm = false;
-			createValues = {
-				name: '',
-				displayName: '',
-				origin: '',
-				redirectUrls: '',
-				type: 'basic'
-			};
-			addNotification('success', `Successfully created application: ${createValues.name}`);
-			await invalidateAll();
-		} else {
-			let errorMessage = 'Failed to create application';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			} else if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
-		}
-	}
 </script>
+
+<svelte:head>
+	<title>Kanidm Management Console</title>
+	<meta name="description" content="Manage OAuth2 applications, groups, and users in Kanidm" />
+</svelte:head>
 
 <Toaster {notifications} {removeNotification} />
 
-<div class="container mx-auto px-4 py-8">
-	<div class="mb-8 flex items-center justify-between">
-		<h1 class="text-3xl font-bold">OAuth2 Applications</h1>
-		<a href={data.home} class="link link-primary mr-auto ml-3">Back to Kanidm</a>
-		<button class="btn btn-primary" onclick={() => (showCreateForm = !showCreateForm)}>
-			{showCreateForm ? 'Cancel' : 'Create Application'}
-		</button>
+<div class="min-h-screen bg-base-100">
+	<!-- Header -->
+	<div class="navbar bg-base-200 shadow-sm">
+		<div class="navbar-start">
+			<h1 class="text-xl font-bold">Kanidm Management Console</h1>
+		</div>
+		<div class="navbar-end">
+			<a href={data.home} class="btn btn-ghost btn-sm">Back to Kanidm</a>
+		</div>
 	</div>
 
-	{#if showCreateForm}
-		<div class="card bg-base-200 mx-auto mb-8 max-w-2xl">
-			<div class="card-body">
-				<h2 class="card-title">Create New OAuth2 Application</h2>
-
-				<div class="form-control">
-					<label class="label">
-						<span class="label-text font-medium">Application Type</span>
-					</label>
-					<div class="flex gap-4">
-						<label class="label cursor-pointer">
-							<input
-								type="radio"
-								name="type"
-								value="basic"
-								class="radio radio-primary"
-								bind:group={createValues.type}
-							/>
-							<span class="label-text ml-2">Basic (Confidential)</span>
-						</label>
-						<label class="label cursor-pointer">
-							<input
-								type="radio"
-								name="type"
-								value="public"
-								class="radio radio-primary"
-								bind:group={createValues.type}
-							/>
-							<span class="label-text ml-2">Public</span>
-						</label>
-					</div>
-				</div>
-
-				<div class="form-control">
-					<label class="label" for="create-name">
-						<span class="label-text font-medium">Application Name</span>
-						<span class="label-text-alt">Unique identifier for the application</span>
-					</label>
-					<input
-						id="create-name"
-						type="text"
-						class="input input-bordered"
-						placeholder="my-app"
-						bind:value={createValues.name}
-						required
-					/>
-				</div>
-
-				<div class="form-control">
-					<label class="label" for="create-display-name">
-						<span class="label-text font-medium">Display Name</span>
-						<span class="label-text-alt">Human-readable name shown to users</span>
-					</label>
-					<input
-						id="create-display-name"
-						type="text"
-						class="input input-bordered"
-						placeholder="My Application"
-						bind:value={createValues.displayName}
-						required
-					/>
-				</div>
-
-				<div class="form-control">
-					<label class="label" for="create-origin">
-						<span class="label-text font-medium">Origin (Homepage)</span>
-						<span class="label-text-alt">Landing page URL - required for application</span>
-					</label>
-					<input
-						id="create-origin"
-						type="url"
-						class="input input-bordered font-mono"
-						placeholder="https://example.com"
-						bind:value={createValues.origin}
-						required
-					/>
-				</div>
-
-				<div class="form-control">
-					<label class="label" for="create-redirects">
-						<span class="label-text font-medium">Redirect URLs</span>
-						<span class="label-text-alt">OAuth2 callback URLs, one per line</span>
-					</label>
-					<textarea
-						id="create-redirects"
-						class="textarea textarea-bordered h-24 font-mono text-sm"
-						placeholder="https://example.com/oauth/callback&#10;https://app.example.com/auth/callback"
-						bind:value={createValues.redirectUrls}
-					></textarea>
-				</div>
-
-				<div class="card-actions mt-6 justify-end">
-					<button class="btn btn-outline" onclick={() => (showCreateForm = false)}> Cancel </button>
-					<button
-						class="btn btn-primary"
-						onclick={() => createApplication()}
-						disabled={!createValues.name || !createValues.displayName || !createValues.origin}
+	<!-- Tab Navigation -->
+	<div class="bg-base-200/50 border-b border-base-300">
+		<div class="container mx-auto px-4">
+			<div class="tabs tabs-bordered">
+				<button
+					class="tab tab-lg {activeTab === 'oauth2' ? 'tab-active' : ''}"
+					onclick={() => (activeTab = 'oauth2')}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-5 w-5 mr-2"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
 					>
-						Create Application
-					</button>
-				</div>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+						/>
+					</svg>
+					OAuth2 Applications
+					{#if data.apps?.body?.length}
+						<span class="badge badge-neutral badge-sm ml-2">{data.apps.body.length}</span>
+					{/if}
+				</button>
+				<button
+					class="tab tab-lg {activeTab === 'groups' ? 'tab-active' : ''}"
+					onclick={() => (activeTab = 'groups')}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-5 w-5 mr-2"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+						/>
+					</svg>
+					Groups
+					{#if data.groups?.body?.length}
+						<span class="badge badge-neutral badge-sm ml-2">{data.groups.body.length}</span>
+					{/if}
+				</button>
+				<button
+					class="tab tab-lg {activeTab === 'users' ? 'tab-active' : ''}"
+					onclick={() => (activeTab = 'users')}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-5 w-5 mr-2"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+						/>
+					</svg>
+					Users
+					{#if data.users?.body?.length}
+						<span class="badge badge-neutral badge-sm ml-2">{data.users.body.length}</span>
+					{/if}
+				</button>
 			</div>
 		</div>
-	{/if}
-
-	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-		{#each data.apps.body as app}
-			{@const appName = app.attrs?.name[0]}
-			{@const isEditing = editingApps[appName]}
-			{@const confidential = !app.attrs?.class?.includes('oauth2_resource_server_public')}
-			<div class="card bg-base-300 flex w-full flex-col">
-				<div class="card-body flex flex-1 flex-col">
-					<h2 class="card-title mb-4 flex items-center gap-2">
-						<div class="tooltip" data-tip={confidential ? 'Confidential client' : 'Public client'}>
-							{#if confidential}
-								<Lock />
-							{:else}
-								<Globe />
-							{/if}
-						</div>
-
-						<span class="flex-1">
-							{#if isEditing}
-								Editing: {app.attrs?.displayname}
-							{:else}
-								{app.attrs?.displayname}
-							{/if}
-						</span>
-						{#if !isEditing && app.attrs?.oauth2_rs_origin_landing?.[0]}
-							<a
-								href={app.attrs.oauth2_rs_origin_landing[0]}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="btn btn-xs btn-ghost text-xs"
-							>
-								Visit
-							</a>
-						{/if}
-					</h2>
-
-					<div class="flex-1 overflow-auto">
-						{#if isEditing}
-							<div class="space-y-4">
-								<div class="form-control">
-									<label class="label" for="displayname-{appName}">
-										<span class="label-text font-medium">Display Name</span>
-									</label>
-									<input
-										id="displayname-{appName}"
-										class="input input-bordered"
-										bind:value={editValues[appName].displayName}
-										placeholder="Enter display name"
-									/>
-								</div>
-
-								<div class="form-control">
-									<label class="label" for="origin-{appName}">
-										<span class="label-text font-medium">Origin (Homepage)</span>
-										<span class="label-text-alt">Landing page URL</span>
-									</label>
-									<input
-										id="origin-{appName}"
-										class="input input-bordered font-mono"
-										placeholder="https://example.com"
-										bind:value={editValues[appName].origin}
-									/>
-								</div>
-
-								<div class="form-control">
-									<label class="label" for="redirects-{appName}">
-										<span class="label-text font-medium">Redirect URLs (Optional)</span>
-										<span class="label-text-alt">One URL per line, must start with http</span>
-									</label>
-									<textarea
-										id="redirects-{appName}"
-										class="textarea textarea-bordered h-32 w-full font-mono text-sm"
-										placeholder="https://example.com/callback&#10;https://app.example.com/oauth/callback"
-										bind:value={editValues[appName].redirectUrls}
-									></textarea>
-								</div>
-
-								<div class="form-control">
-									<label class="label cursor-pointer justify-start gap-3" for="crypto-{appName}">
-										<input
-											id="crypto-{appName}"
-											type="checkbox"
-											class="toggle {editValues[appName].secureCrypto
-												? 'toggle-success'
-												: 'toggle-warning'}"
-											bind:checked={editValues[appName].secureCrypto}
-										/>
-										<div>
-											<span class="label-text font-medium">Secure Crypto</span>
-											<div class="label-text-alt">
-												{editValues[appName].secureCrypto
-													? 'Modern cryptographic algorithms (recommended)'
-													: 'Legacy crypto enabled (less secure)'}
-											</div>
-										</div>
-									</label>
-								</div>
-
-								<div class="form-control">
-									<label class="label cursor-pointer justify-start gap-3" for="pkce-{appName}">
-										<input
-											id="pkce-{appName}"
-											type="checkbox"
-											class="toggle {editValues[appName].requirePKCE
-												? 'toggle-success'
-												: 'toggle-warning'}"
-											bind:checked={editValues[appName].requirePKCE}
-										/>
-										<div>
-											<span class="label-text font-medium">Require PKCE</span>
-											<div class="label-text-alt">
-												{editValues[appName].requirePKCE
-													? 'PKCE required for all clients (recommended)'
-													: 'Allow insecure clients to disable PKCE (less secure)'}
-											</div>
-										</div>
-									</label>
-								</div>
-							</div>
-						{:else}
-							<div class="space-y-4">
-								<div class="bg-base-100 rounded-lg p-4">
-									<div class="text-base-content/70 mb-1 text-sm font-medium">Application Name</div>
-									<div class="font-mono text-sm">{app.attrs?.name.join(', ')}</div>
-								</div>
-
-								<div class="bg-base-100 rounded-lg p-4">
-									<div class="mb-3 flex items-center justify-between">
-										<div class="text-base-content/70 text-sm font-medium">Application Image</div>
-										<div class="space-x-2">
-											<button
-												class="btn btn-sm btn-primary"
-												onclick={() => openImageModal(appName, 'upload')}
-											>
-												{app.attrs?.image?.length ? 'Update' : 'Upload'}
-											</button>
-											<button
-												class="btn btn-sm btn-secondary"
-												onclick={() => fetchFavicon(appName)}
-												disabled={!app.attrs?.oauth2_rs_origin_landing?.[0]}
-											>
-												Fetch Icon
-											</button>
-											{#if app.attrs?.image?.length}
-												<button
-													class="btn btn-sm btn-error"
-													onclick={() => openImageModal(appName, 'delete')}
-												>
-													Delete
-												</button>
-											{/if}
-										</div>
-									</div>
-									{#if app.attrs?.image?.length}
-										<div class="flex justify-center">
-											<img
-												src="/api/kani/image/{appName}"
-												alt="Application logo"
-												class="border-base-300 h-16 w-16 rounded-lg border object-cover"
-											/>
-										</div>
-									{:else}
-										<div
-											class="bg-base-200 border-base-300 flex h-16 items-center justify-center rounded-lg border-2 border-dashed"
-										>
-											<span class="text-base-content/60 text-sm">No image uploaded</span>
-										</div>
-									{/if}
-								</div>
-
-								<div class="bg-base-100 rounded-lg p-4">
-									<div class="text-base-content/70 mb-1 text-sm font-medium">Origin (Homepage)</div>
-									<code class="block text-sm break-all"
-										>{app.attrs?.oauth2_rs_origin_landing?.[0] || 'Not set'}</code
-									>
-								</div>
-
-								<div class="bg-base-100 rounded-lg p-4">
-									<div class="text-base-content/70 mb-2 text-sm font-medium">Redirect URLs</div>
-									{#if app.attrs?.oauth2_rs_origin?.length}
-										<div class="space-y-2">
-											{#each app.attrs.oauth2_rs_origin as url}
-												<code class="bg-base-200 block rounded p-2 text-xs break-all">{url}</code>
-											{/each}
-										</div>
-									{:else}
-										<div class="text-base-content/60 text-sm italic">None configured</div>
-									{/if}
-								</div>
-
-								<div class="bg-base-100 rounded-lg p-4">
-									<div class="mb-3 flex items-center justify-between">
-										<div class="text-base-content/70 text-sm font-medium">Scope Map</div>
-										<button
-											class="btn btn-sm btn-primary"
-											onclick={() => openScopeMapModal(appName, 'add')}
-										>
-											Add Scope
-										</button>
-									</div>
-									{#if app.attrs?.oauth2_rs_scope_map?.length}
-										<div class="space-y-2">
-											{#each app.attrs.oauth2_rs_scope_map as scope}
-												{@const [groupName] = scope.split(':')}
-												<div class="bg-base-200 flex items-center justify-between rounded p-2">
-													<code class="flex-1 text-xs break-all">{scope}</code>
-													<button
-														class="btn btn-xs btn-error ml-2"
-														onclick={() => openScopeMapModal(appName, 'delete', groupName.trim())}
-													>
-														Delete
-													</button>
-												</div>
-											{/each}
-										</div>
-									{:else}
-										<div class="text-base-content/60 text-sm italic">None configured</div>
-									{/if}
-								</div>
-
-								<div class="grid grid-cols-2 gap-4">
-									<div class="bg-base-100 rounded-lg p-3">
-										<div class="text-base-content/70 mb-1 text-xs font-medium">Legacy Crypto</div>
-										<div
-											class="badge badge-sm {app.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] ===
-											'true'
-												? 'badge-warning'
-												: 'badge-success'}"
-										>
-											{app.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] === 'true'
-												? 'Enabled'
-												: 'Disabled'}
-										</div>
-									</div>
-									<div class="bg-base-100 rounded-lg p-3">
-										<div class="text-base-content/70 mb-1 text-xs font-medium">PKCE Required</div>
-										<div
-											class="badge badge-sm {app.attrs
-												?.oauth2_allow_insecure_client_disable_pkce?.[0] === 'true'
-												? 'badge-warning'
-												: 'badge-success'}"
-										>
-											{app.attrs?.oauth2_allow_insecure_client_disable_pkce?.[0] === 'true'
-												? 'No'
-												: 'Yes'}
-										</div>
-									</div>
-								</div>
-
-								<div class="bg-base-100 rounded-lg p-4">
-									<div class="text-base-content/70 mb-1 text-sm font-medium">UUID</div>
-									<code class="text-sm break-all">{app.attrs?.uuid[0]}</code>
-								</div>
-							</div>
-						{/if}
-					</div>
-					<div
-						class="card-actions border-base-content/10 mt-4 flex-shrink-0 justify-end border-t pt-4"
-					>
-						{#if isEditing}
-							<button class="btn btn-outline" onclick={() => toggleEditMode(appName)}>
-								Cancel
-							</button>
-							<button class="btn btn-primary" onclick={() => saveChanges(appName)}>
-								Save Changes
-							</button>
-						{:else}
-							<button
-								class="btn btn-error"
-								onclick={() => openDeleteModal(appName, app.attrs?.displayname?.[0] || appName)}
-							>
-								Delete
-							</button>
-							<button class="btn btn-secondary" onclick={() => copySecret(appName)}>
-								Copy Secret
-							</button>
-							<button class="btn btn-primary" onclick={() => toggleEditMode(appName)}>
-								Edit
-							</button>
-						{/if}
-					</div>
-				</div>
-			</div>
-		{/each}
 	</div>
-</div>
 
-<ScopeMapModal {scopeMapModal} {scopeMapForm} {data} {addNotification} />
-<ImageModal {imageModal} {data} {addNotification} />
-<DeleteModal {deleteModal} {addNotification} />
+	<!-- Tab Content -->
+	<main class="flex-1">
+		{#if activeTab === 'oauth2'}
+			<Oauth2Manager {data} {addNotification} />
+		{:else if activeTab === 'groups'}
+			<GroupManager {data} {addNotification} />
+		{:else if activeTab === 'users'}
+			<UserManager {data} {addNotification} />
+		{/if}
+	</main>
+</div>

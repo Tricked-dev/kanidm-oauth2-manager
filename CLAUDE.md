@@ -5,9 +5,10 @@ code in this repository.
 
 ## Project Overview
 
-This is a SvelteKit application that provides a web-based management interface
-for Kanidm OAuth2 applications. The project displays OAuth2 applications with
-their configuration attributes and allows updating display names.
+This is a comprehensive SvelteKit application that provides a web-based management 
+interface for Kanidm identity management system. The project provides full management
+capabilities for OAuth2 applications, groups, and users with advanced features like
+Unix extensions and SSH key management.
 
 ## Development Commands
 
@@ -36,33 +37,103 @@ WE USE BUN USE BUN FOR ALL PACKAGE MANAGER RELATED COMMANDS
 - Contains hardcoded credentials for `idm_admin` user
 - Forwards requests to Kanidm API with Bearer token authentication
 
-#### Frontend (`src/routes/+page.svelte` & `src/routes/+page.ts`)
+#### Main Interface (`src/routes/+page.svelte` & `src/routes/+page.server.ts`)
 
-- Page loader fetches OAuth2 applications via `kaniRequest` utility
-- Displays applications in card layout with attribute tables
-- Supports updating display names for OAuth2 apps
-- Shows important OAuth2 settings like redirect URLs, scopes, and crypto
-  settings
+- Tabbed interface with three main sections: OAuth2, Groups, and Users
+- Page loader fetches data for all three entity types from Kanidm API
+- Centralized notification system shared across all managers
+- Responsive design with item counts displayed in tab badges
+
+#### OAuth2 Manager (`src/lib/components/Oauth2Manager.svelte`)
+
+- Full OAuth2 application lifecycle management (create, edit, delete)
+- Advanced configuration options: PKCE, legacy crypto, redirect URLs
+- Image upload and favicon fetching capabilities
+- Scope mapping management for group-based permissions
+- Support for both confidential and public OAuth2 clients
+
+#### Group Manager (`src/lib/components/GroupManager.svelte`)
+
+- Complete group management with member addition/removal
+- Unix/POSIX extension support with GID configuration
+- Group attribute management (display name, description)
+- Unix token generation for system integration
+- Member management with add/remove functionality
+
+#### User Manager (`src/lib/components/UserManager.svelte`)
+
+- Full user account lifecycle management
+- Unix extension support with UID, GID, home directory, and shell configuration
+- SSH public key management with multiple key support
+- Password reset capabilities for Unix-enabled accounts
+- User attribute management (display name, email, legal name)
+- Group membership visualization
 
 #### Utilities (`src/utils.ts`)
 
 - `kaniRequest()` function provides typed interface for API calls
-- Abstracts POST requests to internal `/api/kani` endpoint
+- Abstracts all HTTP methods (GET, POST, PATCH, DELETE) to internal `/api/kani` endpoint
+- Handles both JSON and FormData payloads
 
 ### Data Flow
 
-1. Page load triggers `kaniRequest()` to fetch OAuth2 apps
-2. Request goes through internal API proxy (`/api/kani`)
-3. Proxy authenticates with Kanidm and forwards request
-4. Frontend displays applications and their attributes
-5. Updates trigger PATCH requests through same proxy flow
+1. Page load triggers multiple `kaniRequest()` calls to fetch OAuth2 apps, groups, and users
+2. All requests go through internal API proxy (`/api/kani`) with automatic authentication
+3. Proxy authenticates with Kanidm using session management and forwards requests
+4. Frontend displays all entities in tabbed interface with proper component separation
+5. All CRUD operations (Create, Read, Update, Delete) go through the same proxy flow
+6. Specialized operations (Unix extensions, SSH keys, passwords) use dedicated API endpoints
 
 ### Important Notes
 
-- Application uses Svelte 5 runes syntax (`$props()`, `$inspect()`)
+- Application uses Svelte 5 runes syntax (`$props()`, `$state()`, etc.)
 - Authentication credentials are currently hardcoded in the API route
-- The app specifically manages OAuth2 redirect URLs and security settings
-- Uses DaisyUI component classes for styling (cards, buttons, tables)
+- Comprehensive management of OAuth2, Groups, and Users with advanced features
+- Unix/POSIX extensions supported for both groups and users
+- SSH key management with multiple key support per user
+- Uses DaisyUI component classes for styling (cards, buttons, tables, tabs, modals)
+- Modular architecture with separate manager components for maintainability
+- Centralized notification system with toast messages
+
+### API Endpoints Used
+
+Based on the Kanidm OpenAPI specification, the application uses these key endpoints:
+
+#### OAuth2 Management
+- `GET /v1/oauth2` - List all OAuth2 applications
+- `POST /v1/oauth2/_basic` - Create confidential OAuth2 client
+- `POST /v1/oauth2/_public` - Create public OAuth2 client
+- `GET /v1/oauth2/{rs_name}` - Get OAuth2 application details
+- `PATCH /v1/oauth2/{rs_name}` - Update OAuth2 application
+- `DELETE /v1/oauth2/{rs_name}` - Delete OAuth2 application
+- `GET /v1/oauth2/{rs_name}/_basic_secret` - Get application secret
+- `POST /v1/oauth2/{rs_name}/_image` - Upload application image
+- `DELETE /v1/oauth2/{rs_name}/_image` - Delete application image
+- `POST /v1/oauth2/{rs_name}/_scopemap/{group}` - Manage scope mappings
+
+#### Group Management
+- `GET /v1/group` - List all groups
+- `POST /v1/group` - Create new group
+- `GET /v1/group/{id}` - Get group details
+- `PATCH /v1/group/{id}` - Update group
+- `DELETE /v1/group/{id}` - Delete group
+- `POST /v1/group/{id}/_attr/member` - Add group member
+- `DELETE /v1/group/{id}/_attr/member` - Remove group member
+- `POST /v1/group/{id}/_unix` - Enable Unix extension
+- `GET /v1/group/{id}/_unix/_token` - Get Unix token
+
+#### User Management
+- `GET /v1/person` - List all users/persons
+- `POST /v1/person` - Create new user
+- `GET /v1/person/{id}` - Get user details
+- `PATCH /v1/person/{id}` - Update user
+- `DELETE /v1/person/{id}` - Delete user
+- `POST /v1/account/{id}/_unix` - Enable Unix extension for user
+- `POST /v1/account/{id}/_unix/_token` - Generate Unix token
+- `POST /v1/account/{id}/_unix/_auth` - Reset user password
+- `GET /v1/account/{id}/_ssh_pubkeys` - Get SSH keys
+- `POST /v1/account/{id}/_ssh_pubkeys/{tag}` - Add SSH key
+- `DELETE /v1/account/{id}/_ssh_pubkeys/{tag}` - Remove SSH key
 
 ### Example kanidm oauth2 application payload
 
