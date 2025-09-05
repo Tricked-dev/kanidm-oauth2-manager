@@ -6,7 +6,7 @@
 
 	let editingUsers = $state<Record<string, boolean>>({});
 	let editValues = $state<
-		Record<string, { displayName: string; mail?: string; legalName?: string }>
+		Record<string, { displayName: string; mail?: string; legalName?: string; gidNumber?: string; loginShell?: string }>
 	>({});
 	let showCreateForm = $state(false);
 	let showUnixForm = $state<{
@@ -24,14 +24,6 @@
 		homeDirectory: '',
 		loginShell: '/bin/bash'
 	});
-	let showSshKeyForm = $state<{ show: boolean; userName: string; keyTag: string; publicKey: string }>(
-		{
-			show: false,
-			userName: '',
-			keyTag: '',
-			publicKey: ''
-		}
-	);
 	let showPasswordForm = $state<{ show: boolean; userName: string; password: string }>({
 		show: false,
 		userName: '',
@@ -58,15 +50,7 @@
 		userName: '',
 		mode: 'status'
 	});
-	let showRadiusForm = $state<{ show: boolean; userName: string }>({
-		show: false,
-		userName: ''
-	});
-	let showCertificateForm = $state<{ show: boolean; userName: string; certificate: string }>({
-		show: false,
-		userName: '',
-		certificate: ''
-	});
+
 	let createValues = $state({
 		name: '',
 		displayName: '',
@@ -86,7 +70,9 @@
 			editValues[userName] = {
 				displayName: user?.attrs?.displayname?.[0] || '',
 				mail: user?.attrs?.mail?.[0] || '',
-				legalName: user?.attrs?.legalname?.[0] || ''
+				legalName: user?.attrs?.legalname?.[0] || '',
+				gidNumber: user?.attrs?.gidnumber?.[0] || '',
+				loginShell: user?.attrs?.loginshell?.[0] || ''
 			};
 		}
 	}
@@ -95,6 +81,7 @@
 		const values = editValues[userName];
 		if (!values) return;
 
+		// Save regular user attributes
 		const attrs: Record<string, string[]> = {
 			displayname: [values.displayName.trim()]
 		};
@@ -112,20 +99,49 @@
 			body: { attrs }
 		});
 
+		// If user has Unix extension and Unix fields were modified, also update Unix extension
+		const user = data.users?.body.find((u: any) => u.attrs?.name[0] === userName);
+		const isUnixEnabled = hasUnixExtension(user);
+		
+		let unixUpdateSuccess = true;
+		if (isUnixEnabled && (values.gidNumber !== undefined || values.loginShell !== undefined)) {
+			const unixBody: any = {};
+			
+			if (values.gidNumber?.trim()) {
+				unixBody.gidnumber = parseInt(values.gidNumber.trim());
+			}
+			if (values.loginShell?.trim()) {
+				unixBody.shell = values.loginShell.trim();
+			}
+
+			if (Object.keys(unixBody).length > 0) {
+				const unixResponse = await kaniRequest(fetch, {
+					path: `v1/person/${userName}/_unix`,
+					method: 'POST',
+					body: unixBody
+				});
+				unixUpdateSuccess = unixResponse.status === 200;
+			}
+		}
+
 		await invalidateAll();
 
-		if (response.status === 200) {
+		if (response.status === 200 && unixUpdateSuccess) {
 			editingUsers[userName] = false;
 			delete editValues[userName];
 			addNotification('success', `Successfully updated user ${userName}`);
 		} else {
 			let errorMessage = 'Failed to update user';
-			if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
+			if (response.status !== 200) {
+				if (
+					response.body &&
+					typeof response.body === 'object' &&
+					'invalidattribute' in response.body
+				) {
+					errorMessage = response.body.invalidattribute as string;
+				}
+			} else if (!unixUpdateSuccess) {
+				errorMessage = 'User attributes updated but Unix extension update failed';
 			}
 			addNotification('error', errorMessage);
 		}
@@ -163,9 +179,14 @@
 		} else {
 			let errorMessage = 'Failed to create user';
 			if (response.status === 403) {
-				errorMessage = 'Access denied: You do not have permission to create users. Please contact your Kanidm administrator.';
+				errorMessage = 'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
 			} else if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body.replace(/"/g, '');
+				const bodyStr = response.body.replace(/"/g, '');
+				if (bodyStr === 'accessdenied') {
+					errorMessage = 'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
+				} else {
+					errorMessage = bodyStr;
+				}
 			} else if (
 				response.body &&
 				typeof response.body === 'object' &&
@@ -250,36 +271,6 @@
 	}
 
 
-	function openSshKeyForm(userName: string) {
-		showSshKeyForm = { show: true, userName, keyTag: '', publicKey: '' };
-	}
-
-	async function addSshKey() {
-		if (!showSshKeyForm.userName || !showSshKeyForm.publicKey) {
-			addNotification('error', 'Username and public key are required');
-			return;
-		}
-
-		// API expects an array of SSH key strings
-		const response = await kaniRequest(fetch, {
-			path: `v1/person/${showSshKeyForm.userName}/_ssh_pubkeys`,
-			method: 'POST',
-			body: [showSshKeyForm.publicKey.trim()]
-		});
-
-		if (response.status === 200) {
-			const userName = showSshKeyForm.userName;
-			showSshKeyForm = { show: false, userName: '', keyTag: '', publicKey: '' };
-			addNotification('success', `Successfully added SSH key for ${userName}`);
-			await invalidateAll();
-		} else {
-			let errorMessage = 'Failed to add SSH key';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body.replace(/"/g, '');
-			}
-			addNotification('error', errorMessage);
-		}
-	}
 
 	async function removeSshKey(userName: string, keyTag: string) {
 		const response = await kaniRequest(fetch, {
@@ -447,81 +438,6 @@
 		}
 	}
 
-	function openRadiusForm(userName: string) {
-		showRadiusForm = { show: true, userName };
-	}
-
-	async function getRadiusToken(userName: string) {
-		try {
-			const result = await kaniRequest(fetch, {
-				path: `v1/person/${userName}/_radius/_token`,
-				method: 'GET'
-			});
-
-			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
-				addNotification('success', `RADIUS token copied to clipboard for ${userName}`);
-			} else {
-				addNotification('error', 'Failed to fetch RADIUS token');
-			}
-		} catch (error) {
-			console.error(error);
-			addNotification('error', 'Failed to copy RADIUS token to clipboard');
-		}
-	}
-
-	function openCertificateForm(userName: string) {
-		showCertificateForm = { show: true, userName, certificate: '' };
-	}
-
-	async function addCertificate() {
-		if (!showCertificateForm.userName || !showCertificateForm.certificate) {
-			addNotification('error', 'Username and certificate are required');
-			return;
-		}
-
-		const response = await kaniRequest(fetch, {
-			path: `v1/person/${showCertificateForm.userName}/_certificate`,
-			method: 'POST',
-			body: {
-				attrs: {
-					certificate: [showCertificateForm.certificate.trim()]
-				}
-			}
-		});
-
-		if (response.status === 200) {
-			const userName = showCertificateForm.userName;
-			showCertificateForm = { show: false, userName: '', certificate: '' };
-			addNotification('success', `Successfully added certificate for ${userName}`);
-			await invalidateAll();
-		} else {
-			let errorMessage = 'Failed to add certificate';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body.replace(/"/g, '');
-			}
-			addNotification('error', errorMessage);
-		}
-	}
-
-	async function identifyUser(userName: string) {
-		try {
-			const result = await kaniRequest(fetch, {
-				path: `v1/person/${userName}/_identify/_user`,
-				method: 'POST'
-			});
-
-			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
-				addNotification('success', `User identification copied to clipboard for ${userName}`);
-			} else {
-				addNotification('error', 'Failed to identify user');
-			}
-		} catch (error) {
-			console.error(error);
-			addNotification('error', 'Failed to identify user');
-		}
-	}
 
 	function hasUnixExtension(user: any): boolean {
 		return user.attrs?.class?.includes('posixaccount') || false;
@@ -681,44 +597,6 @@
 		</div>
 	{/if}
 
-	<!-- SSH Key Modal -->
-	{#if showSshKeyForm.show}
-		<div class="modal modal-open">
-			<div class="modal-box max-w-2xl">
-				<h3 class="text-lg font-bold">Add SSH Public Key</h3>
-				<p class="py-4">
-					Add SSH public key for user <strong>{showSshKeyForm.userName}</strong>
-				</p>
-
-				<div class="space-y-4">
-					<div class="form-control">
-						<label class="label" for="ssh-pubkey">
-							<span class="label-text font-medium">Public Key</span>
-							<span class="label-text-alt">SSH public key content</span>
-						</label>
-						<textarea
-							id="ssh-pubkey"
-							class="textarea textarea-bordered h-32 font-mono text-sm"
-							placeholder="ssh-rsa AAAAB3NzaC1yc2EAAAA..."
-							bind:value={showSshKeyForm.publicKey}
-							required
-						></textarea>
-					</div>
-				</div>
-
-				<div class="modal-action">
-					<button
-						class="btn btn-outline"
-						onclick={() =>
-							(showSshKeyForm = { show: false, userName: '', keyTag: '', publicKey: '' })}
-					>
-						Cancel
-					</button>
-					<button class="btn btn-primary" onclick={() => addSshKey()}> Add SSH Key </button>
-				</div>
-			</div>
-		</div>
-	{/if}
 
 	<!-- Password Reset Modal -->
 	{#if showPasswordForm.show}
@@ -806,44 +684,7 @@
 		</div>
 	{/if}
 
-	<!-- Certificate Management Modal -->
-	{#if showCertificateForm.show}
-		<div class="modal modal-open">
-			<div class="modal-box max-w-2xl">
-				<h3 class="text-lg font-bold">Add Certificate</h3>
-				<p class="py-4">
-					Add certificate for user <strong>{showCertificateForm.userName}</strong>
-				</p>
-
-				<div class="form-control">
-					<label class="label" for="certificate">
-						<span class="label-text font-medium">Certificate</span>
-						<span class="label-text-alt">PEM-formatted certificate</span>
-					</label>
-					<textarea
-						id="certificate"
-						class="textarea textarea-bordered h-32 font-mono text-sm"
-						placeholder="-----BEGIN CERTIFICATE-----&#10;MIICxjCCAa4CCQC...&#10;-----END CERTIFICATE-----"
-						bind:value={showCertificateForm.certificate}
-						required
-					></textarea>
-				</div>
-
-				<div class="modal-action">
-					<button
-						class="btn btn-outline"
-						onclick={() =>
-							(showCertificateForm = { show: false, userName: '', certificate: '' })}
-					>
-						Cancel
-					</button>
-					<button class="btn btn-primary" onclick={() => addCertificate()}>
-						Add Certificate
-					</button>
-				</div>
-			</div>
-		</div>
-	{/if}
+	
 
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 		{#each data.users?.body || [] as user}
@@ -904,6 +745,40 @@
 										placeholder="Full legal name"
 									/>
 								</div>
+
+								{#if isUnixEnabled}
+									<div class="divider text-xs">Unix Extensions</div>
+
+									<div class="form-control">
+										<label class="label" for="gid-{userName}">
+											<span class="label-text font-medium">GID Number</span>
+											<span class="label-text-alt">Primary group identifier</span>
+										</label>
+										<input
+											id="gid-{userName}"
+											type="number"
+											class="input input-bordered"
+											bind:value={editValues[userName].gidNumber}
+											placeholder="1000"
+											min="1000"
+										/>
+									</div>
+
+									<div class="form-control">
+										<label class="label" for="shell-{userName}">
+											<span class="label-text font-medium">Login Shell</span>
+											<span class="label-text-alt">Default shell for the user</span>
+										</label>
+										<select id="shell-{userName}" class="select select-bordered" bind:value={editValues[userName].loginShell}>
+											<option value="">[Keep current]</option>
+											<option value="/bin/bash">/bin/bash</option>
+											<option value="/bin/sh">/bin/sh</option>
+											<option value="/bin/zsh">/bin/zsh</option>
+											<option value="/bin/fish">/bin/fish</option>
+											<option value="/usr/bin/nologin">/usr/bin/nologin</option>
+										</select>
+									</div>
+								{/if}
 							</div>
 						{:else}
 							<div class="space-y-4">
@@ -981,12 +856,6 @@
 									<div class="mb-3 flex items-center justify-between">
 										<div class="text-base-content/70 text-sm font-medium">SSH Keys</div>
 										<div class="space-x-2">
-											<button
-												class="btn btn-sm btn-primary"
-												onclick={() => openSshKeyForm(userName)}
-											>
-												Add Key
-											</button>
 											<button class="btn btn-sm btn-secondary" onclick={() => getSshKeys(userName)}>
 												Copy All
 											</button>
@@ -1063,15 +932,6 @@
 									</li>
 									<li>
 										<button onclick={() => updateCredentialIntent(userName)}>Update Credential Intent</button>
-									</li>
-									<li>
-										<button onclick={() => getRadiusToken(userName)}>Get RADIUS Token</button>
-									</li>
-									<li>
-										<button onclick={() => openCertificateForm(userName)}>Add Certificate</button>
-									</li>
-									<li>
-										<button onclick={() => identifyUser(userName)}>Identify User</button>
 									</li>
 									<li>
 										<button class="text-error" onclick={() => deleteUser(userName)}>Delete User</button>

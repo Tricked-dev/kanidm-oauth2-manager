@@ -1,5 +1,5 @@
 interface KaniRequest {
-    method?: "POST" | "GET" | "PATCH" | "DELETE";
+    method?: "POST" | "GET" | "PATCH" | "DELETE" | "PUT";
     body?: any;
     path: string;
     contentType?: string;
@@ -43,7 +43,6 @@ export async function kaniRequest<T>(
     if (import.meta.env.DEV && response.status >= 400) {
         console.group(`🚨 Kanidm API Error: ${data.method || 'GET'} ${data.path}`);
         console.error('Status:', response.status);
-        console.error('Request Body:', data.body);
         console.error('Response Body:', JSON.stringify(response.body));
         console.error('Full Request:', JSON.stringify(data));
         console.groupEnd();
