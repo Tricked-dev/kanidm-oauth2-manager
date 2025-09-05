@@ -34,7 +34,7 @@
 
 <Toaster {notifications} {removeNotification} />
 
-<div class="min-h-screen bg-base-100">
+<div class="bg-base-100 min-h-screen">
 	<!-- Header -->
 	<div class="navbar bg-base-200 shadow-sm">
 		<div class="navbar-start">
@@ -46,7 +46,7 @@
 	</div>
 
 	<!-- Tab Navigation -->
-	<div class="bg-base-200/50 border-b border-base-300">
+	<div class="bg-base-200/50 border-base-300 border-b">
 		<div class="container mx-auto px-4">
 			<div class="tabs tabs-bordered">
 				<button
@@ -55,7 +55,7 @@
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="h-5 w-5 mr-2"
+						class="mr-2 h-5 w-5"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -78,7 +78,7 @@
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="h-5 w-5 mr-2"
+						class="mr-2 h-5 w-5"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -101,7 +101,7 @@
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="h-5 w-5 mr-2"
+						class="mr-2 h-5 w-5"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"

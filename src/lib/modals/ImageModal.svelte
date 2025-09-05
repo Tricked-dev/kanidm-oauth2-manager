@@ -71,7 +71,7 @@
 
 			// Determine target size: scale down if larger than 1024px
 			let targetSize = Math.min(Math.round(width), Math.round(height), 1024);
-			
+
 			canvas.width = targetSize;
 			canvas.height = targetSize;
 
@@ -92,13 +92,17 @@
 
 			// Create initial blob
 			let blob: Blob = await new Promise((resolve, reject) => {
-				canvas.toBlob((result) => {
-					if (result) {
-						resolve(result);
-					} else {
-						reject(new Error('Canvas toBlob returned null'));
-					}
-				}, 'image/webp', 0.9);
+				canvas.toBlob(
+					(result) => {
+						if (result) {
+							resolve(result);
+						} else {
+							reject(new Error('Canvas toBlob returned null'));
+						}
+					},
+					'image/webp',
+					0.9
+				);
 			});
 
 			// If still over 256KB and we haven't tried 512px yet, resize to 512px
@@ -106,9 +110,9 @@
 				targetSize = 512;
 				canvas.width = targetSize;
 				canvas.height = targetSize;
-				
+
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
-				
+
 				ctx.drawImage(
 					img,
 					Math.round(x),
@@ -122,18 +126,25 @@
 				);
 
 				blob = await new Promise((resolve, reject) => {
-					canvas.toBlob((result) => {
-						if (result) {
-							resolve(result);
-						} else {
-							reject(new Error('Canvas toBlob returned null'));
-						}
-					}, 'image/webp', 0.9);
+					canvas.toBlob(
+						(result) => {
+							if (result) {
+								resolve(result);
+							} else {
+								reject(new Error('Canvas toBlob returned null'));
+							}
+						},
+						'image/webp',
+						0.9
+					);
 				});
 			}
 
 			const file = new File([blob], 'cropped-image.webp', { type: 'image/webp' });
-			addNotification('info', `Image processed: ${targetSize}x${targetSize}px, ${Math.round(blob.size / 1024)}KB`);
+			addNotification(
+				'info',
+				`Image processed: ${targetSize}x${targetSize}px, ${Math.round(blob.size / 1024)}KB`
+			);
 			await uploadImage(imageModal.appName, file);
 		} catch (error: any) {
 			console.error('Error cropping image:', error);

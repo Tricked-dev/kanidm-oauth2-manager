@@ -1,6 +1,6 @@
 services:
   container:
-    image: "oauth2-manager"
+    image: 'oauth2-manager'
     build: .
     ports:
       - 3000:3000

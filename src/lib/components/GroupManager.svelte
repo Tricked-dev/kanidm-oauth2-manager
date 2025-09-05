@@ -154,7 +154,10 @@
 
 		if (response.status === 200) {
 			showUnixForm = { show: false, groupName: '', gidNumber: '' };
-			addNotification('success', `Successfully enabled Unix extension for ${showUnixForm.groupName}`);
+			addNotification(
+				'success',
+				`Successfully enabled Unix extension for ${showUnixForm.groupName}`
+			);
 		} else {
 			addNotification('error', 'Failed to enable Unix extension');
 		}
@@ -474,9 +477,13 @@
 											</button>
 										</div>
 										<div class="space-y-1">
-											<div class="text-xs text-base-content/70">GID: {group.attrs.gidnumber[0]}</div>
+											<div class="text-base-content/70 text-xs">
+												GID: {group.attrs.gidnumber[0]}
+											</div>
 											{#if group.attrs?.shell}
-												<div class="text-xs text-base-content/70">Shell: {group.attrs.shell[0]}</div>
+												<div class="text-base-content/70 text-xs">
+													Shell: {group.attrs.shell[0]}
+												</div>
 											{/if}
 										</div>
 									</div>

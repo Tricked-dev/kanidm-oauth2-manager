@@ -5,7 +5,7 @@ code in this repository.
 
 ## Project Overview
 
-This is a comprehensive SvelteKit application that provides a web-based management 
+This is a comprehensive SvelteKit application that provides a web-based management
 interface for Kanidm identity management system. The project provides full management
 capabilities for OAuth2 applications, groups, and users with advanced features like
 Unix extensions and SSH key management.
@@ -100,6 +100,7 @@ WE USE BUN USE BUN FOR ALL PACKAGE MANAGER RELATED COMMANDS
 Based on the Kanidm OpenAPI specification, the application uses these key endpoints:
 
 #### OAuth2 Management
+
 - `GET /v1/oauth2` - List all OAuth2 applications
 - `POST /v1/oauth2/_basic` - Create confidential OAuth2 client
 - `POST /v1/oauth2/_public` - Create public OAuth2 client
@@ -112,6 +113,7 @@ Based on the Kanidm OpenAPI specification, the application uses these key endpoi
 - `POST /v1/oauth2/{rs_name}/_scopemap/{group}` - Manage scope mappings
 
 #### Group Management
+
 - `GET /v1/group` - List all groups
 - `POST /v1/group` - Create new group
 - `GET /v1/group/{id}` - Get group details
@@ -123,6 +125,7 @@ Based on the Kanidm OpenAPI specification, the application uses these key endpoi
 - `GET /v1/group/{id}/_unix/_token` - Get Unix token
 
 #### User Management
+
 - `GET /v1/person` - List all users/persons
 - `POST /v1/person` - Create new user
 - `GET /v1/person/{id}` - Get user details
@@ -139,44 +142,44 @@ Based on the Kanidm OpenAPI specification, the application uses these key endpoi
 
 ```json
 [
-    {
-        "attrs": {
-            "class": [
-                "account",
-                "key_object",
-                "key_object_internal",
-                "key_object_jwe_a128gcm",
-                "key_object_jwt_es256",
-                "key_object_jwt_rs256",
-                "memberof",
-                "oauth2_resource_server",
-                "oauth2_resource_server_basic",
-                "object"
-            ],
-            "directmemberof": ["idm_all_accounts@tricked.dev"],
-            "displayname": ["Linkwarden"],
-            "key_internal_data": [
-                "147bbd7d0c39c7a01c75529e3c1f30cb: valid jwe_a128gcm 0",
-                "7c0f2de437f36005df95ad639972b24e: valid jws_es256 0",
-                "bf3d0c8a45f4c0af95c68dd9c3e378a039ea92369274a91c47abe40e1c348a4a: valid jws_rs256 0"
-            ],
-            "memberof": ["idm_all_accounts@tricked.dev"],
-            "name": ["linkwarden"],
-            "oauth2_jwt_legacy_crypto_enable": ["true"],
-            "oauth2_rs_basic_secret": ["hidden"],
-            "oauth2_rs_origin": [
-                "https://links.tricked.dev/api/v1/auth/callback/authentik",
-                "https://links.tricked.dev/api/v1/auth/callback/kanidm",
-                "https://links.tricked.dev/api/v1/auth"
-            ],
-            "oauth2_rs_origin_landing": ["https://links.tricked.dev/"],
-            "oauth2_rs_scope_map": [
-                "idm_all_persons@tricked.dev: {\"email\", \"generic_users\", \"groups\", \"openid\", \"profile\"}"
-            ],
-            "oauth2_strict_redirect_uri": ["true"],
-            "spn": ["linkwarden@tricked.dev"],
-            "uuid": ["1ccbb914-30f0-491e-8fcf-63dceb1298a5"]
-        }
-    }
+	{
+		"attrs": {
+			"class": [
+				"account",
+				"key_object",
+				"key_object_internal",
+				"key_object_jwe_a128gcm",
+				"key_object_jwt_es256",
+				"key_object_jwt_rs256",
+				"memberof",
+				"oauth2_resource_server",
+				"oauth2_resource_server_basic",
+				"object"
+			],
+			"directmemberof": ["idm_all_accounts@tricked.dev"],
+			"displayname": ["Linkwarden"],
+			"key_internal_data": [
+				"147bbd7d0c39c7a01c75529e3c1f30cb: valid jwe_a128gcm 0",
+				"7c0f2de437f36005df95ad639972b24e: valid jws_es256 0",
+				"bf3d0c8a45f4c0af95c68dd9c3e378a039ea92369274a91c47abe40e1c348a4a: valid jws_rs256 0"
+			],
+			"memberof": ["idm_all_accounts@tricked.dev"],
+			"name": ["linkwarden"],
+			"oauth2_jwt_legacy_crypto_enable": ["true"],
+			"oauth2_rs_basic_secret": ["hidden"],
+			"oauth2_rs_origin": [
+				"https://links.tricked.dev/api/v1/auth/callback/authentik",
+				"https://links.tricked.dev/api/v1/auth/callback/kanidm",
+				"https://links.tricked.dev/api/v1/auth"
+			],
+			"oauth2_rs_origin_landing": ["https://links.tricked.dev/"],
+			"oauth2_rs_scope_map": [
+				"idm_all_persons@tricked.dev: {\"email\", \"generic_users\", \"groups\", \"openid\", \"profile\"}"
+			],
+			"oauth2_strict_redirect_uri": ["true"],
+			"spn": ["linkwarden@tricked.dev"],
+			"uuid": ["1ccbb914-30f0-491e-8fcf-63dceb1298a5"]
+		}
+	}
 ]
 ```

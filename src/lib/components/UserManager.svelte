@@ -6,7 +6,16 @@
 
 	let editingUsers = $state<Record<string, boolean>>({});
 	let editValues = $state<
-		Record<string, { displayName: string; mail?: string; legalName?: string; gidNumber?: string; loginShell?: string }>
+		Record<
+			string,
+			{
+				displayName: string;
+				mail?: string;
+				legalName?: string;
+				gidNumber?: string;
+				loginShell?: string;
+			}
+		>
 	>({});
 	let showCreateForm = $state(false);
 	let showUnixForm = $state<{
@@ -102,11 +111,11 @@
 		// If user has Unix extension and Unix fields were modified, also update Unix extension
 		const user = data.users?.body.find((u: any) => u.attrs?.name[0] === userName);
 		const isUnixEnabled = hasUnixExtension(user);
-		
+
 		let unixUpdateSuccess = true;
 		if (isUnixEnabled && (values.gidNumber !== undefined || values.loginShell !== undefined)) {
 			const unixBody: any = {};
-			
+
 			if (values.gidNumber?.trim()) {
 				unixBody.gidnumber = parseInt(values.gidNumber.trim());
 			}
@@ -179,11 +188,13 @@
 		} else {
 			let errorMessage = 'Failed to create user';
 			if (response.status === 403) {
-				errorMessage = 'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
+				errorMessage =
+					'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
 			} else if (response.body && typeof response.body === 'string') {
 				const bodyStr = response.body.replace(/"/g, '');
 				if (bodyStr === 'accessdenied') {
-					errorMessage = 'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
+					errorMessage =
+						'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
 				} else {
 					errorMessage = bodyStr;
 				}
@@ -269,8 +280,6 @@
 			addNotification('error', errorMessage);
 		}
 	}
-
-
 
 	async function removeSshKey(userName: string, keyTag: string) {
 		const response = await kaniRequest(fetch, {
@@ -416,10 +425,10 @@
 	}
 
 	async function updateCredentialIntent(userName: string, ttl?: number) {
-		const path = ttl 
+		const path = ttl
 			? `v1/person/${userName}/_credential/_update_intent/${ttl}`
 			: `v1/person/${userName}/_credential/_update_intent`;
-		
+
 		try {
 			const result = await kaniRequest(fetch, {
 				path,
@@ -437,7 +446,6 @@
 			addNotification('error', 'Failed to get credential update intent');
 		}
 	}
-
 
 	function hasUnixExtension(user: any): boolean {
 		return user.attrs?.class?.includes('posixaccount') || false;
@@ -548,8 +556,21 @@
 
 				<div class="space-y-4">
 					<div class="alert alert-info">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-						<span>Note: UID number and home directory are automatically assigned by the system.</span>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							class="h-6 w-6 shrink-0 stroke-current"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+							></path></svg
+						>
+						<span
+							>Note: UID number and home directory are automatically assigned by the system.</span
+						>
 					</div>
 
 					<div class="form-control">
@@ -572,7 +593,11 @@
 							<span class="label-text font-medium">Login Shell</span>
 							<span class="label-text-alt">Default shell for the user</span>
 						</label>
-						<select id="unix-shell" class="select select-bordered" bind:value={showUnixForm.loginShell}>
+						<select
+							id="unix-shell"
+							class="select select-bordered"
+							bind:value={showUnixForm.loginShell}
+						>
 							{@render shells()}
 						</select>
 					</div>
@@ -600,7 +625,6 @@
 			</div>
 		</div>
 	{/if}
-
 
 	<!-- Password Reset Modal -->
 	{#if showPasswordForm.show}
@@ -688,8 +712,6 @@
 		</div>
 	{/if}
 
-	
-
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 		{#each data.users?.body || [] as user}
 			{@const userName = user.attrs?.name[0]}
@@ -773,7 +795,11 @@
 											<span class="label-text font-medium">Login Shell</span>
 											<span class="label-text-alt">Default shell for the user</span>
 										</label>
-										<select id="shell-{userName}" class="select select-bordered" bind:value={editValues[userName].loginShell}>
+										<select
+											id="shell-{userName}"
+											class="select select-bordered"
+											bind:value={editValues[userName].loginShell}
+										>
 											<option value="">[Keep current]</option>
 											{@render shells()}
 										</select>
@@ -826,7 +852,9 @@
 											{/each}
 										</div>
 									{:else}
-										<div class="text-base-content/60 text-sm italic">Not a member of any groups</div>
+										<div class="text-base-content/60 text-sm italic">
+											Not a member of any groups
+										</div>
 									{/if}
 								</div>
 
@@ -835,7 +863,7 @@
 										<div class="mb-2 flex items-center justify-between">
 											<div class="text-base-content/70 text-sm font-medium">Unix Extension</div>
 										</div>
-										<div class="space-y-1 text-xs text-base-content/70">
+										<div class="text-base-content/70 space-y-1 text-xs">
 											{#if user.attrs?.uidnumber}
 												<div>UID: {user.attrs.uidnumber[0]}</div>
 											{/if}
@@ -928,13 +956,19 @@
 									{/if}
 									<li><button onclick={() => toggleEditMode(userName)}>Edit User</button></li>
 									<li>
-										<button onclick={() => getCredentialStatus(userName)}>Get Credential Status</button>
+										<button onclick={() => getCredentialStatus(userName)}
+											>Get Credential Status</button
+										>
 									</li>
 									<li>
-										<button onclick={() => updateCredentialIntent(userName)}>Update Credential Intent</button>
+										<button onclick={() => updateCredentialIntent(userName)}
+											>Update Credential Intent</button
+										>
 									</li>
 									<li>
-										<button class="text-error" onclick={() => deleteUser(userName)}>Delete User</button>
+										<button class="text-error" onclick={() => deleteUser(userName)}
+											>Delete User</button
+										>
 									</li>
 								</ul>
 							</div>

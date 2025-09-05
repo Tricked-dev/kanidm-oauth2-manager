@@ -40,7 +40,7 @@ The application requires the following environment variables to be configured:
 Create a `docker-compose.yml` file:
 
 ```yaml
-version: "3.8"
+version: '3.8'
 
 services:
   kanidm-oauth2-manager:
@@ -48,7 +48,7 @@ services:
     container_name: kanidm-oauth2-manager
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - KANIDM_BASE_URL=https://your-kanidm-instance.example.com
       - KANIDM_USERNAME=idm_admin
@@ -72,7 +72,7 @@ services:
     container_name: kanidm-oauth2-manager
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3000:3000'
     env_file: .env
 ```
 
@@ -109,11 +109,13 @@ have oidc support).
 
 1. Clone the repository
 2. Install dependencies:
+
    ```bash
    bun install
    ```
 
 3. Configure environment variables:
+
    ```bash
    cp .env.example .env
    # Edit .env with your Kanidm configuration
