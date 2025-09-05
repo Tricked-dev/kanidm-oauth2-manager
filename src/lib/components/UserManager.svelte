@@ -444,6 +444,14 @@
 	}
 </script>
 
+{#snippet shells()}
+	<option value="/bin/bash">/bin/bash</option>
+	<option value="/bin/sh">/bin/sh</option>
+	<option value="/bin/zsh">/bin/zsh</option>
+	<option value="/bin/fish">/bin/fish</option>
+	<option value="/usr/bin/nologin">/usr/bin/nologin</option>
+{/snippet}
+
 <div class="container mx-auto px-4 py-8">
 	<div class="mb-8 flex items-center justify-between">
 		<h1 class="text-3xl font-bold">Users</h1>
@@ -565,11 +573,7 @@
 							<span class="label-text-alt">Default shell for the user</span>
 						</label>
 						<select id="unix-shell" class="select select-bordered" bind:value={showUnixForm.loginShell}>
-							<option value="/bin/bash">/bin/bash</option>
-							<option value="/bin/sh">/bin/sh</option>
-							<option value="/bin/zsh">/bin/zsh</option>
-							<option value="/bin/fish">/bin/fish</option>
-							<option value="/usr/bin/nologin">/usr/bin/nologin</option>
+							{@render shells()}
 						</select>
 					</div>
 				</div>
@@ -771,11 +775,7 @@
 										</label>
 										<select id="shell-{userName}" class="select select-bordered" bind:value={editValues[userName].loginShell}>
 											<option value="">[Keep current]</option>
-											<option value="/bin/bash">/bin/bash</option>
-											<option value="/bin/sh">/bin/sh</option>
-											<option value="/bin/zsh">/bin/zsh</option>
-											<option value="/bin/fish">/bin/fish</option>
-											<option value="/usr/bin/nologin">/usr/bin/nologin</option>
+											{@render shells()}
 										</select>
 									</div>
 								{/if}
