@@ -1,0 +1,13 @@
+{
+	"permissions": {
+		"allow": [
+			"Bash(bun run:*)",
+			"Bash(mkdir:*)",
+			"Bash(git remote get-url:*)",
+			"Bash(kanidm help:*)",
+			"Bash(kanidm person help:*)",
+			"Bash(kanidm person posix:*)"
+		],
+		"deny": []
+	}
+}
