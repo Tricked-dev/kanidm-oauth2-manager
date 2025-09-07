@@ -27,11 +27,12 @@ applications configured in your Kanidm identity management system.
 
 The application requires the following environment variables to be configured:
 
-| Variable          | Description                        | Example                   |
-| ----------------- | ---------------------------------- | ------------------------- |
-| `KANIDM_BASE_URL` | Base URL of your Kanidm instance   | `https://idm.example.com` |
-| `KANIDM_USERNAME` | Username for Kanidm authentication | `idm_admin`               |
-| `KANIDM_PASSWORD` | Password for Kanidm authentication | `your_password_here`      |
+| Variable          | Description                                                                    | Example                   |
+| ----------------- | ------------------------------------------------------------------------------ | ------------------------- |
+| `KANIDM_BASE_URL` | Base URL of your Kanidm instance                                               | `https://idm.example.com` |
+| `KANIDM_USERNAME` | Username for Kanidm authentication                                             | `idm_admin`               |
+| `KANIDM_PASSWORD` | Password for Kanidm authentication                                             | `your_password_here`      |
+| `ORIGIN`          | Location the application is running on required for some features on localhost | `http://localhost:3000`   |
 
 ## Docker Deployment
 
@@ -86,6 +87,7 @@ docker run -d \
   -e KANIDM_BASE_URL=https://your-kanidm-instance.example.com \
   -e KANIDM_USERNAME=idm_admin \
   -e KANIDM_PASSWORD=your_admin_password \
+  -e ORIGIN=http://localhost:3000 \
   ghcr.io/tricked-dev/kanidm-oauth2-manager:latest
 ```
 
