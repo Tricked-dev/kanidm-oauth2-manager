@@ -170,6 +170,7 @@ including:
    are correct
 2. **Connection errors**: Ensure `KANIDM_BASE_URL` is accessible from the
    container
+3. **Cross-site POST form submissions are forbidden when trying to upload app image**: Ensure the origin environment variable is set
 
 ### Logs
 
@@ -178,6 +179,13 @@ Check container logs for detailed error information:
 ```bash
 docker logs kanidm-oauth2-manager
 ```
+
+## More images
+
+<img width="3839" height="2160" alt="Groups" src="https://github.com/user-attachments/assets/113a36e9-c995-42a8-9256-0a0839d3292e" />
+<img width="3839" height="2160" alt="Oauth2" src="https://github.com/user-attachments/assets/9f23efa0-69fe-4ae3-9b22-523117ee4b6d" />
+<img width="3839" height="2160" alt="Users" src="https://github.com/user-attachments/assets/d30f4f55-6fe5-4529-b324-3f422a62799c" />
+
 
 ## License
 
