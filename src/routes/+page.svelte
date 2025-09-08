@@ -2,7 +2,7 @@
 	import Oauth2Manager from '$lib/components/Oauth2Manager.svelte';
 	import GroupManager from '$lib/components/GroupManager.svelte';
 	import UserManager from '$lib/components/UserManager.svelte';
-	import Toaster from '$lib/compoents/Toaster.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 
 	const { data } = $props();
 

@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { kaniRequest } from '../../utils';
 	import ScopeMapModal from '$lib/modals/ScopeMapModal.svelte';
+	import ClaimMapModal from '$lib/modals/ClaimMapModal.svelte';
 	import ImageModal from '$lib/modals/ImageModal.svelte';
 	import DeleteModal from '$lib/modals/DeleteModal.svelte';
 	import Lock from '$lib/icons/Lock.svelte';
@@ -37,6 +38,24 @@
 		groupName: '',
 		scopes: 'email, profile, openid, groups'
 	});
+	let claimMapModal = $state<{
+		show: boolean;
+		appName: string;
+		mode: 'add' | 'delete' | 'join';
+		claimName: string;
+		groupName?: string;
+	}>({
+		show: false,
+		appName: '',
+		mode: 'add',
+		claimName: ''
+	});
+	let claimMapForm = $state({
+		claimName: '',
+		groupName: '',
+		claims: '',
+		joinStrategy: 'array' as 'csv' | 'ssv' | 'array'
+	});
 	let imageModal = $state<{
 		show: boolean;
 		appName: string;
@@ -71,6 +90,20 @@
 		scopeMapModal = { show: true, appName, mode, groupName };
 		if (mode === 'add') {
 			scopeMapForm = { groupName: '', scopes: 'email, profile, openid, groups' };
+		}
+	}
+
+	function openClaimMapModal(
+		appName: string,
+		mode: 'add' | 'delete' | 'join',
+		claimName?: string,
+		groupName?: string
+	) {
+		claimMapModal = { show: true, appName, mode, claimName: claimName || '', groupName };
+		if (mode === 'add') {
+			claimMapForm = { claimName: '', groupName: '', claims: '', joinStrategy: 'array' };
+		} else if (mode === 'join') {
+			claimMapForm = { ...claimMapForm, joinStrategy: 'array' };
 		}
 	}
 
@@ -624,6 +657,78 @@
 									{/if}
 								</div>
 
+								<div class="bg-base-100 rounded-lg p-4">
+									<div class="mb-3 flex items-center justify-between">
+										<div class="text-base-content/70 text-sm font-medium">Claim Map</div>
+										<div class="space-x-2">
+											<button
+												class="btn btn-sm btn-primary"
+												onclick={() => openClaimMapModal(appName, 'add')}
+											>
+												Add Claim
+											</button>
+										</div>
+									</div>
+									{#if app.attrs?.oauth2_rs_claim_map?.length}
+										{@const claimGroups = app.attrs.oauth2_rs_claim_map.reduce(
+											(
+												acc: Record<string, Array<{ group: string; entry: string }>>,
+												claimEntry: string
+											) => {
+												const [claimName, rest] = claimEntry.split(':');
+												const [groupName] = rest?.split(' {') || [''];
+												if (!acc[claimName.trim()]) acc[claimName.trim()] = [];
+												if (groupName.trim())
+													acc[claimName.trim()].push({
+														group: groupName.trim(),
+														entry: claimEntry
+													});
+												return acc;
+											},
+											{}
+										)}
+										<div class="space-y-3">
+											{#each Object.entries(claimGroups) as [claimName, mappings]}
+												{@const typedMappings = mappings as Array<{ group: string; entry: string }>}
+												<div class="bg-base-200 rounded p-3">
+													<div class="mb-2 flex items-center justify-between">
+														<div class="text-sm font-medium">
+															Claim: <code class="bg-base-300 rounded px-1">{claimName}</code>
+														</div>
+														<div class="space-x-1">
+															<button
+																class="btn btn-xs btn-secondary"
+																onclick={() => openClaimMapModal(appName, 'join', claimName)}
+																title="Configure join strategy"
+															>
+																Join
+															</button>
+														</div>
+													</div>
+													<div class="space-y-1">
+														{#each typedMappings as mapping}
+															<div
+																class="bg-base-100 flex items-center justify-between rounded p-2"
+															>
+																<code class="flex-1 text-xs break-all">{mapping.entry}</code>
+																<button
+																	class="btn btn-xs btn-error ml-2"
+																	onclick={() =>
+																		openClaimMapModal(appName, 'delete', claimName, mapping.group)}
+																>
+																	Delete
+																</button>
+															</div>
+														{/each}
+													</div>
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<div class="text-base-content/60 text-sm italic">None configured</div>
+									{/if}
+								</div>
+
 								<div class="grid grid-cols-2 gap-4">
 									<div class="bg-base-100 rounded-lg p-3">
 										<div class="text-base-content/70 mb-1 text-xs font-medium">Legacy Crypto</div>
@@ -692,5 +797,6 @@
 </div>
 
 <ScopeMapModal {scopeMapModal} {scopeMapForm} {data} {addNotification} />
+<ClaimMapModal {claimMapModal} {claimMapForm} {data} {addNotification} />
 <ImageModal {imageModal} {data} {addNotification} />
 <DeleteModal {deleteModal} {addNotification} />
