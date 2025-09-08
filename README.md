@@ -151,6 +151,12 @@ Bearer token authentication with a 5-minute token cache to optimize performance.
   application management
 - Consider running behind a reverse proxy with TLS termination
 
+### Or just run it locally real quick
+
+pull the container do what you want shutdown the container and forget i exist :\)
+
+running it with bun is also a valid option if you don't want to deal with docker btw
+
 ## OAuth2 Application Management
 
 The interface displays OAuth2 applications with their complete configuration
