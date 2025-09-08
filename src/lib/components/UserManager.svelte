@@ -503,34 +503,6 @@
 					/>
 				</div>
 
-				<div class="form-control">
-					<label class="label" for="create-user-legal-name">
-						<span class="label-text font-medium">Legal Name (Optional)</span>
-						<span class="label-text-alt">Full legal name</span>
-					</label>
-					<input
-						id="create-user-legal-name"
-						type="text"
-						class="input input-bordered"
-						placeholder="John Michael Doe"
-						bind:value={createValues.legalName}
-					/>
-				</div>
-
-				<div class="form-control">
-					<label class="label" for="create-user-email">
-						<span class="label-text font-medium">Email (Optional)</span>
-						<span class="label-text-alt">User's email address</span>
-					</label>
-					<input
-						id="create-user-email"
-						type="email"
-						class="input input-bordered"
-						placeholder="john.doe@example.com"
-						bind:value={createValues.mail}
-					/>
-				</div>
-
 				<div class="card-actions mt-6 justify-end">
 					<button class="btn btn-outline" onclick={() => (showCreateForm = false)}> Cancel </button>
 					<button
