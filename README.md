@@ -1,19 +1,39 @@
-# Kanidm OAuth2 Manager
+# Kanidm Management Interface
 
 <img width="1554" height="1312" alt="image" src="https://github.com/user-attachments/assets/4f3b4943-9900-46ad-9ded-07e99b32793b" />
 
-A web-based management interface for [Kanidm](https://kanidm.com/) OAuth2 applications. This SvelteKit
-application provides an intuitive interface to view and manage OAuth2
-applications configured in your Kanidm identity management system.
+A comprehensive web-based management interface for [Kanidm](https://kanidm.com/) identity management system. This SvelteKit application provides an intuitive interface to manage OAuth2 applications, groups, and users in your Kanidm instance with advanced features like Unix extensions and SSH key management.
 
 ## Features
 
-- View all OAuth2 applications with their configuration attributes
-- Update display names for OAuth2 applications
-- Display important OAuth2 settings including redirect URLs, scopes, and
-  cryptographic settings
+### OAuth2 Application Management
+- Complete OAuth2 application lifecycle (create, edit, delete)
+- Support for both confidential and public OAuth2 clients
+- Advanced configuration options (PKCE, legacy crypto, redirect URLs)
+- Image upload and favicon fetching capabilities
+- Scope mapping management for group-based permissions
+- Claim mapping management for permissions inside applications like grafana
+- Basic secret management and configuration
+
+### Group Management
+- Full group lifecycle management (create, edit, delete)
+- Member management with add/remove functionality
+- Unix/POSIX extension support with GID configuration
+- Group attribute management (display name, description)
+- Unix token generation for system integration
+
+### User Management
+- Complete user account lifecycle management
+- User attribute management (display name, email, legal name)
+- Group membership visualization and management
+- Unix extension support with UID, GID, home directory, and shell configuration
+- Password reset capabilities for Unix-enabled accounts
+- Credential status and update intent management
+
+### General Features
 - Responsive design using Tailwind CSS and DaisyUI components
-- Support for image uploads and binary data handling
+- Real-time updates and notifications
+- Tabbed interface with item counts and badges
 
 ## Architecture
 

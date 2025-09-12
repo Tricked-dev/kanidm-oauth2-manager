@@ -5,10 +5,11 @@ code in this repository.
 
 ## Project Overview
 
-This is a comprehensive SvelteKit application that provides a web-based management
-interface for Kanidm identity management system. The project provides full management
-capabilities for OAuth2 applications, groups, and users with advanced features like
-Unix extensions and SSH key management.
+This is a comprehensive SvelteKit application that provides a complete web-based management
+interface for Kanidm identity management system. The application features full lifecycle
+management for OAuth2 applications, groups, and users with advanced capabilities including
+Unix/POSIX extensions, SSH key management, password reset functionality, group membership
+management, and credential handling.
 
 ## Development Commands
 
@@ -54,20 +55,23 @@ WE USE BUN USE BUN FOR ALL PACKAGE MANAGER RELATED COMMANDS
 
 #### Group Manager (`src/lib/components/GroupManager.svelte`)
 
-- Complete group management with member addition/removal
-- Unix/POSIX extension support with GID configuration
-- Group attribute management (display name, description)
-- Unix token generation for system integration
-- Member management with add/remove functionality
+- **Complete group lifecycle**: Create, edit, delete groups with validation
+- **Member management**: Add/remove users and groups as members with real-time updates
+- **Unix/POSIX extensions**: Enable Unix group functionality with GID configuration
+- **Group attributes**: Manage display names, descriptions, and metadata
+- **Unix token generation**: Generate and retrieve Unix tokens for system integration
+- **Modal-based workflows**: Streamlined UI for enabling Unix extensions and adding members
 
 #### User Manager (`src/lib/components/UserManager.svelte`)
 
-- Full user account lifecycle management
-- Unix extension support with UID, GID, home directory, and shell configuration
-- SSH public key management with multiple key support
-- Password reset capabilities for Unix-enabled accounts
-- User attribute management (display name, email, legal name)
-- Group membership visualization
+- **Full user lifecycle**: Create, edit, delete user accounts with comprehensive validation
+- **User attributes**: Manage display names, email addresses, legal names, and metadata
+- **Unix extensions**: Enable POSIX account functionality with UID, GID, home directory, and shell configuration
+- **SSH key management**: Add, remove, and copy SSH public keys with tag-based organization
+- **Password management**: Reset passwords for Unix-enabled accounts with secure workflows
+- **Group membership**: Visualize and manage user group memberships with add/remove functionality
+- **Credential management**: Access credential status and update intents for account security
+- **Advanced UI**: In-line editing, dropdown actions, and modal-based forms for complex operations
 
 #### Utilities (`src/utils.ts`)
 
