@@ -159,7 +159,7 @@
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ origin: baseUrl })
+				body: JSON.stringify({ origin })
 			});
 
 			if (response.ok) {
@@ -168,7 +168,9 @@
 
 				if (contentType && contentType.startsWith('image/')) {
 					// Create a File object with appropriate extension
-					const extension = contentType.split('/')[1] || 'png';
+					// Normalize compound subtypes: svg+xml → svg, x-icon → ico
+					const subtype = contentType.split('/')[1] || 'png';
+					const extension = subtype.replace(/\+.*$/, '').replace(/^x-/, '');
 					const file = new File([blob], `favicon.${extension}`, { type: contentType });
 
 					// Upload the image
