@@ -4,11 +4,27 @@
 
 	const { data, addNotification } = $props();
 
-	// Local copy of accounts so we can update group memberships immediately
-	// without waiting for invalidateAll() to round-trip through the server.
+	// Local copy of accounts so we can update group memberships immediately.
+	// The list endpoint (v1/service_account) does not return memberof reliably,
+	// so we never let the server data overwrite memberof on existing accounts —
+	// only structural changes (creates / deletes) are synced from server data.
 	let localAccounts = $state<any[]>(data.serviceAccounts?.body || []);
 	$effect(() => {
-		localAccounts = data.serviceAccounts?.body || [];
+		const serverAccounts: any[] = data.serviceAccounts?.body || [];
+		const serverNames = new Set(serverAccounts.map((a: any) => a.attrs?.name?.[0]));
+
+		// Drop accounts that were deleted on the server
+		localAccounts = localAccounts.filter((a: any) => serverNames.has(a.attrs?.name?.[0]));
+
+		// Add accounts that were created on the server
+		for (const serverAcc of serverAccounts) {
+			const name = serverAcc.attrs?.name?.[0];
+			if (!localAccounts.find((a: any) => a.attrs?.name?.[0] === name)) {
+				localAccounts = [...localAccounts, serverAcc];
+			}
+		}
+		// Intentionally NOT updating memberof on existing accounts —
+		// the list endpoint omits it, and we track it locally below.
 	});
 
 	let showCreateForm = $state(false);
@@ -130,16 +146,17 @@
 					: `Removed ${accountName} from ${groupName}`
 			);
 
-			// Fetch the individual account to get its current memberof — the list
-			// endpoint (v1/service_account) doesn't reliably return memberof, so
-			// we go directly to v1/service_account/{name} for fresh attrs.
-			const refreshed = await kaniRequest(fetch, {
-				path: `v1/service_account/${accountName}`,
-				method: 'GET'
-			});
+			// Optimistically update local memberof — the list endpoint and individual
+			// GET both omit memberof, so we track it ourselves.
 			const idx = localAccounts.findIndex((a: any) => a.attrs?.name?.[0] === accountName);
-			if (refreshed.status === 200 && refreshed.body && idx >= 0) {
-				localAccounts[idx] = refreshed.body;
+			if (idx >= 0) {
+				const account = localAccounts[idx];
+				const current: string[] = account.attrs?.memberof || [];
+				const updated =
+					mode === 'add'
+						? [...current, groupName]
+						: current.filter((g: string) => g !== groupName);
+				localAccounts[idx] = { ...account, attrs: { ...account.attrs, memberof: updated } };
 			}
 		} else {
 			let msg = mode === 'add' ? 'Failed to add to group' : 'Failed to remove from group';
