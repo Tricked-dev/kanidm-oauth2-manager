@@ -10,7 +10,8 @@ const ALLOWED_PATH_PREFIXES = [
 	'v1/oauth2',
 	'v1/group',
 	'v1/person',
-	'v1/account'
+	'v1/account',
+	'v1/service_account'
 ];
 
 function isAllowedPath(path: string): boolean {
