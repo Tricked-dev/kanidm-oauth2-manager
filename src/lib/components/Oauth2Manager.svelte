@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { kaniRequest, parseKanidmError } from '../../utils';
+	import { kaniRequest, parseKanidmError, copyToClipboard } from '../../utils';
 	import ScopeMapModal from '$lib/modals/ScopeMapModal.svelte';
 	import ClaimMapModal from '$lib/modals/ClaimMapModal.svelte';
 	import ImageModal from '$lib/modals/ImageModal.svelte';
@@ -192,10 +192,15 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(result.body);
-				addNotification('success', `Secret copied to clipboard for ${appName}`);
+				const ok = await copyToClipboard(result.body);
+				addNotification(
+					ok ? 'success' : 'error',
+					ok
+						? `Secret copied to clipboard for ${appName}`
+						: 'Clipboard unavailable — check browser permissions or use HTTPS'
+				);
 			} else {
-				addNotification('error', 'Failed to fetch secret');
+				addNotification('error', parseKanidmError(result.body, 'Failed to fetch secret'));
 			}
 		} catch (error) {
 			console.error(error);

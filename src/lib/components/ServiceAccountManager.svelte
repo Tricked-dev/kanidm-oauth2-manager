@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { kaniRequest, parseKanidmError } from '../../utils';
+	import { kaniRequest, parseKanidmError, copyToClipboard } from '../../utils';
 
 	const { data, addNotification } = $props();
 
@@ -218,12 +218,11 @@
 	}
 
 	async function copyToken() {
-		try {
-			await navigator.clipboard.writeText(tokenModal.generatedToken);
-			addNotification('success', 'Token copied to clipboard');
-		} catch {
-			addNotification('error', 'Failed to copy — please select and copy manually');
-		}
+		const ok = await copyToClipboard(tokenModal.generatedToken);
+		addNotification(
+			ok ? 'success' : 'error',
+			ok ? 'Token copied to clipboard' : 'Clipboard unavailable — check browser permissions or use HTTPS'
+		);
 	}
 
 	async function openTokenList(accountName: string) {

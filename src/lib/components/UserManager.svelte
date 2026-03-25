@@ -272,10 +272,15 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
-				addNotification('success', `SSH keys copied to clipboard for ${userName}`);
+				const ok = await copyToClipboard(JSON.stringify(result.body, null, 2));
+				addNotification(
+					ok ? 'success' : 'error',
+					ok
+						? `SSH keys copied to clipboard for ${userName}`
+						: 'Clipboard unavailable — check browser permissions or use HTTPS'
+				);
 			} else {
-				addNotification('error', 'Failed to fetch SSH keys');
+				addNotification('error', parseKanidmError(result.body, 'Failed to fetch SSH keys'));
 			}
 		} catch (error) {
 			console.error(error);

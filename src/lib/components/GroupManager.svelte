@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { kaniRequest, parseKanidmError } from '../../utils';
+	import { kaniRequest, parseKanidmError, copyToClipboard } from '../../utils';
 
 	const { data, addNotification } = $props();
 
