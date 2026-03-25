@@ -123,29 +123,24 @@
 		groupModal = { show: false, accountName: '', groupName: '', mode: 'add' };
 
 		if (response.status === 200) {
-			// Optimistically update local state so the card reflects the change
-			// immediately, before invalidateAll() re-fetches from the server.
-			const idx = localAccounts.findIndex((a: any) => a.attrs?.name?.[0] === accountName);
-			if (idx >= 0) {
-				const account = localAccounts[idx];
-				const current: string[] = account.attrs?.memberof || [];
-				const updated =
-					mode === 'add'
-						? [...current, groupName]
-						: current.filter((g: string) => g !== groupName);
-				localAccounts[idx] = {
-					...account,
-					attrs: { ...account.attrs, memberof: updated }
-				};
-			}
-
 			addNotification(
 				'success',
 				mode === 'add'
 					? `Added ${accountName} to ${groupName}`
 					: `Removed ${accountName} from ${groupName}`
 			);
-			invalidateAll(); // background sync — don't await
+
+			// Fetch the individual account to get its current memberof — the list
+			// endpoint (v1/service_account) doesn't reliably return memberof, so
+			// we go directly to v1/service_account/{name} for fresh attrs.
+			const refreshed = await kaniRequest(fetch, {
+				path: `v1/service_account/${accountName}`,
+				method: 'GET'
+			});
+			const idx = localAccounts.findIndex((a: any) => a.attrs?.name?.[0] === accountName);
+			if (refreshed.status === 200 && refreshed.body && idx >= 0) {
+				localAccounts[idx] = refreshed.body;
+			}
 		} else {
 			let msg = mode === 'add' ? 'Failed to add to group' : 'Failed to remove from group';
 			if (typeof response.body === 'string') msg = response.body.replace(/"/g, '');
