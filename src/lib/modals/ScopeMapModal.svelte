@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { kaniRequest } from '../../utils';
-	import { invalidate } from '$app/navigation';
+	import { kaniRequest, parseKanidmError } from '../../utils';
+	import { invalidateAll } from '$app/navigation';
 
 	interface ScopeMapModalState {
 		show: boolean;
@@ -54,13 +54,9 @@
 		if (response.status === 200) {
 			addNotification('success', `Added scope map for ${scopeMapForm.groupName}`);
 			closeScopeMapModal();
-			await invalidate(() => true);
+			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to add scope map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to add scope map'));
 		}
 	}
 
@@ -73,13 +69,9 @@
 		if (response.status === 200) {
 			addNotification('success', `Removed scope map for ${groupName}`);
 			closeScopeMapModal();
-			await invalidate(() => true);
+			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to remove scope map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to remove scope map'));
 		}
 	}
 </script>

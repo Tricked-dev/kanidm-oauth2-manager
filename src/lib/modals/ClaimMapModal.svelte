@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { kaniRequest } from '../../utils';
-	import { invalidate } from '$app/navigation';
+	import { kaniRequest, parseKanidmError } from '../../utils';
+	import { invalidateAll } from '$app/navigation';
 
 	interface ClaimMapModalState {
 		show: boolean;
@@ -51,13 +51,9 @@
 		if (response.status === 200) {
 			addNotification('success', `Set join strategy for claim "${claimName}" to "${joinStrategy}"`);
 			closeClaimMapModal();
-			await invalidate(() => true);
+			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to set claim map join strategy';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to set claim map join strategy'));
 		}
 	}
 
@@ -81,17 +77,12 @@
 		if (response.status === 200) {
 			addNotification('success', `Added claim map for "${claimMapForm.claimName}" and group "${claimMapForm.groupName}"`);
 			closeClaimMapModal();
-			await invalidate(() => true);
+			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to add claim map';
-			if (response.body && typeof response.body === 'string') {
-				const body = response.body.replace(/"/g, '');
-				if (body === 'nomatchingentries') {
-					errorMessage = `Group "${claimMapForm.groupName}" does not exist. Please create the group first or check the group name.`;
-				} else {
-					errorMessage = body;
-				}
-			}
+			const raw = parseKanidmError(response.body, 'Failed to add claim map');
+			const errorMessage = raw === 'nomatchingentries'
+				? `Group "${claimMapForm.groupName}" does not exist — create it first or check the name`
+				: raw;
 			addNotification('error', errorMessage);
 		}
 	}
@@ -105,13 +96,9 @@
 		if (response.status === 200) {
 			addNotification('success', `Removed claim map for "${claimName}" and group "${groupName}"`);
 			closeClaimMapModal();
-			await invalidate(() => true);
+			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to remove claim map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to remove claim map'));
 		}
 	}
 </script>
