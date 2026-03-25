@@ -302,6 +302,8 @@
 				type: 'basic'
 			};
 			addNotification('success', `Successfully created application: ${createValues.name}`);
+		} else if (response.status === 409) {
+			addNotification('error', `Name "${createValues.name}" is already taken — choose a different name`);
 		} else {
 			addNotification('error', parseKanidmError(response.body, 'Failed to create application'));
 		}

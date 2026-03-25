@@ -91,9 +91,12 @@
 		await invalidateAll();
 
 		if (response.status === 200) {
+			const name = createValues.name;
 			showCreateForm = false;
 			createValues = { name: '', displayName: '', description: '' };
-			addNotification('success', `Successfully created group: ${createValues.name}`);
+			addNotification('success', `Successfully created group: ${name}`);
+		} else if (response.status === 409) {
+			addNotification('error', `Name "${createValues.name}" is already taken — choose a different name`);
 		} else {
 			addNotification('error', parseKanidmError(response.body, 'Failed to create group'));
 		}

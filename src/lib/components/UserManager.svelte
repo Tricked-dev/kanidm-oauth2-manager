@@ -177,9 +177,12 @@
 			addNotification('success', `Successfully created user: ${createdUserName}`);
 			await invalidateAll();
 		} else {
-			const errorMessage = response.status === 403
-				? 'Access denied. Check that your account has idm_people_admins privileges.'
-				: parseKanidmError(response.body, 'Failed to create user');
+			const errorMessage =
+				response.status === 403
+					? 'Access denied. Check that your account has idm_people_admins privileges.'
+					: response.status === 409
+						? `Name "${createValues.name}" is already taken — choose a different name`
+						: parseKanidmError(response.body, 'Failed to create user');
 			addNotification('error', errorMessage);
 		}
 	}

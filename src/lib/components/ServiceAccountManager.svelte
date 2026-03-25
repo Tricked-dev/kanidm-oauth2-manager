@@ -98,6 +98,8 @@
 			createValues = { name: '', displayName: '' };
 			addNotification('success', `Created service account: ${name}`);
 			await invalidateAll();
+		} else if (response.status === 409) {
+			addNotification('error', `Name "${createValues.name}" is already taken — choose a different name`);
 		} else {
 			addNotification('error', parseKanidmError(response.body, 'Failed to create service account'));
 		}
