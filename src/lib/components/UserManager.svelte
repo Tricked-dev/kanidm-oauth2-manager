@@ -473,35 +473,27 @@
 			<div class="card-body">
 				<h2 class="card-title">Create New User</h2>
 
-				<div class="form-control">
-					<label class="label" for="create-user-name">
-						<span class="label-text font-medium">Username</span>
-						<span class="label-text-alt">Unique identifier for the user</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Username</legend>
 					<input
-						id="create-user-name"
 						type="text"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="john.doe"
 						bind:value={createValues.name}
-						required
 					/>
-				</div>
+					<p class="fieldset-label">Unique identifier for the user</p>
+				</fieldset>
 
-				<div class="form-control">
-					<label class="label" for="create-user-display-name">
-						<span class="label-text font-medium">Display Name</span>
-						<span class="label-text-alt">Human-readable name for the user</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Display Name</legend>
 					<input
-						id="create-user-display-name"
 						type="text"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="John Doe"
 						bind:value={createValues.displayName}
-						required
 					/>
-				</div>
+					<p class="fieldset-label">Human-readable name for the user</p>
+				</fieldset>
 
 				<div class="card-actions mt-6 justify-end">
 					<button class="btn btn-outline" onclick={() => (showCreateForm = false)}> Cancel </button>
@@ -545,34 +537,28 @@
 						>
 					</div>
 
-					<div class="form-control">
-						<label class="label" for="unix-gid">
-							<span class="label-text font-medium">GID Number (Optional)</span>
-							<span class="label-text-alt">Primary group identifier</span>
-						</label>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">GID Number (Optional)</legend>
 						<input
-							id="unix-gid"
 							type="number"
-							class="input input-bordered"
+							class="input w-full"
 							placeholder="1000"
 							bind:value={showUnixForm.gidNumber}
 							min="1000"
 						/>
-					</div>
+						<p class="fieldset-label">Primary group identifier</p>
+					</fieldset>
 
-					<div class="form-control">
-						<label class="label" for="unix-shell">
-							<span class="label-text font-medium">Login Shell</span>
-							<span class="label-text-alt">Default shell for the user</span>
-						</label>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Login Shell</legend>
 						<select
-							id="unix-shell"
-							class="select select-bordered"
+							class="select w-full"
 							bind:value={showUnixForm.loginShell}
 						>
 							{@render shells()}
 						</select>
-					</div>
+						<p class="fieldset-label">Default shell for the user</p>
+					</fieldset>
 				</div>
 
 				<div class="modal-action">
@@ -607,19 +593,15 @@
 					Reset password for user <strong>{showPasswordForm.userName}</strong>
 				</p>
 
-				<div class="form-control">
-					<label class="label" for="new-password">
-						<span class="label-text font-medium">New Password</span>
-						<span class="label-text-alt">Enter a secure password</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">New Password</legend>
 					<input
-						id="new-password"
 						type="password"
-						class="input input-bordered"
+						class="input w-full"
 						bind:value={showPasswordForm.password}
-						required
 					/>
-				</div>
+					<p class="fieldset-label">Enter a secure password</p>
+				</fieldset>
 
 				<div class="modal-action">
 					<button
@@ -648,20 +630,16 @@
 				</p>
 
 				{#if showGroupForm.mode === 'add'}
-					<div class="form-control">
-						<label class="label" for="group-name">
-							<span class="label-text font-medium">Group Name</span>
-							<span class="label-text-alt">Name of the group to add user to</span>
-						</label>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Group Name</legend>
 						<input
-							id="group-name"
 							type="text"
-							class="input input-bordered"
+							class="input w-full"
 							placeholder="my-group"
 							bind:value={showGroupForm.groupName}
-							required
 						/>
-					</div>
+						<p class="fieldset-label">Name of the group to add user to</p>
+					</fieldset>
 				{/if}
 
 				<div class="modal-action">
@@ -707,75 +685,59 @@
 					<div class="flex-1 overflow-auto">
 						{#if isEditing}
 							<div class="space-y-4">
-								<div class="form-control">
-									<label class="label" for="displayname-{userName}">
-										<span class="label-text font-medium">Display Name</span>
-									</label>
+								<fieldset class="fieldset">
+									<legend class="fieldset-legend">Display Name</legend>
 									<input
-										id="displayname-{userName}"
-										class="input input-bordered"
+										class="input w-full"
 										bind:value={editValues[userName].displayName}
 										placeholder="Enter display name"
 									/>
-								</div>
+								</fieldset>
 
-								<div class="form-control">
-									<label class="label" for="email-{userName}">
-										<span class="label-text font-medium">Email</span>
-									</label>
+								<fieldset class="fieldset">
+									<legend class="fieldset-legend">Email</legend>
 									<input
-										id="email-{userName}"
 										type="email"
-										class="input input-bordered"
+										class="input w-full"
 										bind:value={editValues[userName].mail}
 										placeholder="user@example.com"
 									/>
-								</div>
+								</fieldset>
 
-								<div class="form-control">
-									<label class="label" for="legal-name-{userName}">
-										<span class="label-text font-medium">Legal Name</span>
-									</label>
+								<fieldset class="fieldset">
+									<legend class="fieldset-legend">Legal Name</legend>
 									<input
-										id="legal-name-{userName}"
-										class="input input-bordered"
+										class="input w-full"
 										bind:value={editValues[userName].legalName}
 										placeholder="Full legal name"
 									/>
-								</div>
+								</fieldset>
 
 								{#if isUnixEnabled}
 									<div class="divider text-xs">Unix Extensions</div>
 
-									<div class="form-control">
-										<label class="label" for="gid-{userName}">
-											<span class="label-text font-medium">GID Number</span>
-											<span class="label-text-alt">Primary group identifier</span>
-										</label>
+									<fieldset class="fieldset">
+										<legend class="fieldset-legend">GID Number</legend>
 										<input
-											id="gid-{userName}"
 											type="number"
-											class="input input-bordered"
+											class="input w-full"
 											bind:value={editValues[userName].gidNumber}
 											placeholder="1000"
 											min="1000"
 										/>
-									</div>
+										<p class="fieldset-label">Primary group identifier</p>
+									</fieldset>
 
-									<div class="form-control">
-										<label class="label" for="shell-{userName}">
-											<span class="label-text font-medium">Login Shell</span>
-											<span class="label-text-alt">Default shell for the user</span>
-										</label>
+									<fieldset class="fieldset">
+										<legend class="fieldset-legend">Login Shell</legend>
 										<select
-											id="shell-{userName}"
-											class="select select-bordered"
+											class="select w-full"
 											bind:value={editValues[userName].loginShell}
 										>
 											<option value="">[Keep current]</option>
 											{@render shells()}
 										</select>
-									</div>
+									</fieldset>
 								{/if}
 							</div>
 						{:else}

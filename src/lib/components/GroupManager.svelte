@@ -243,48 +243,36 @@
 			<div class="card-body">
 				<h2 class="card-title">Create New Group</h2>
 
-				<div class="form-control">
-					<label class="label" for="create-group-name">
-						<span class="label-text font-medium">Group Name</span>
-						<span class="label-text-alt">Unique identifier for the group</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Group Name</legend>
 					<input
-						id="create-group-name"
 						type="text"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="my-group"
 						bind:value={createValues.name}
-						required
 					/>
-				</div>
+					<p class="fieldset-label">Unique identifier for the group</p>
+				</fieldset>
 
-				<div class="form-control">
-					<label class="label" for="create-group-display-name">
-						<span class="label-text font-medium">Display Name</span>
-						<span class="label-text-alt">Human-readable name for the group</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Display Name</legend>
 					<input
-						id="create-group-display-name"
 						type="text"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="My Group"
 						bind:value={createValues.displayName}
-						required
 					/>
-				</div>
+					<p class="fieldset-label">Human-readable name for the group</p>
+				</fieldset>
 
-				<div class="form-control">
-					<label class="label" for="create-group-description">
-						<span class="label-text font-medium">Description (Optional)</span>
-						<span class="label-text-alt">Brief description of the group</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Description (Optional)</legend>
 					<textarea
-						id="create-group-description"
-						class="textarea textarea-bordered"
+						class="textarea w-full"
 						placeholder="Group description..."
 						bind:value={createValues.description}
 					></textarea>
-				</div>
+				</fieldset>
 
 				<div class="card-actions mt-6 justify-end">
 					<button class="btn btn-outline" onclick={() => (showCreateForm = false)}> Cancel </button>
@@ -308,21 +296,17 @@
 					Enable Unix/POSIX extension for group <strong>{showUnixForm.groupName}</strong>
 				</p>
 
-				<div class="form-control">
-					<label class="label" for="unix-gid">
-						<span class="label-text font-medium">GID Number</span>
-						<span class="label-text-alt">Unix group identifier</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">GID Number</legend>
 					<input
-						id="unix-gid"
 						type="number"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="1000"
 						bind:value={showUnixForm.gidNumber}
 						min="1000"
-						required
 					/>
-				</div>
+					<p class="fieldset-label">Unix group identifier</p>
+				</fieldset>
 
 				<div class="modal-action">
 					<button
@@ -347,20 +331,16 @@
 					Add a member to group <strong>{showAddMemberForm.groupName}</strong>
 				</p>
 
-				<div class="form-control">
-					<label class="label" for="member-name">
-						<span class="label-text font-medium">Member Name</span>
-						<span class="label-text-alt">Username or group name to add</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Member Name</legend>
 					<input
-						id="member-name"
 						type="text"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="username"
 						bind:value={showAddMemberForm.memberName}
-						required
 					/>
-				</div>
+					<p class="fieldset-label">Username or group name to add</p>
+				</fieldset>
 
 				<div class="modal-action">
 					<button
@@ -398,29 +378,23 @@
 					<div class="flex-1 overflow-auto">
 						{#if isEditing}
 							<div class="space-y-4">
-								<div class="form-control">
-									<label class="label" for="displayname-{groupName}">
-										<span class="label-text font-medium">Display Name</span>
-									</label>
+								<fieldset class="fieldset">
+									<legend class="fieldset-legend">Display Name</legend>
 									<input
-										id="displayname-{groupName}"
-										class="input input-bordered"
+										class="input w-full"
 										bind:value={editValues[groupName].displayName}
 										placeholder="Enter display name"
 									/>
-								</div>
+								</fieldset>
 
-								<div class="form-control">
-									<label class="label" for="description-{groupName}">
-										<span class="label-text font-medium">Description</span>
-									</label>
+								<fieldset class="fieldset">
+									<legend class="fieldset-legend">Description</legend>
 									<textarea
-										id="description-{groupName}"
-										class="textarea textarea-bordered"
+										class="textarea w-full"
 										bind:value={editValues[groupName].description}
 										placeholder="Group description..."
 									></textarea>
-								</div>
+								</fieldset>
 							</div>
 						{:else}
 							<div class="space-y-4">

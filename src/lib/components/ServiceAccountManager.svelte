@@ -33,6 +33,18 @@
 		tokens: []
 	});
 
+	let groupModal = $state<{
+		show: boolean;
+		accountName: string;
+		groupName: string;
+		mode: 'add' | 'remove';
+	}>({
+		show: false,
+		accountName: '',
+		groupName: '',
+		mode: 'add'
+	});
+
 	let deleteModal = $state<{ show: boolean; accountName: string }>({
 		show: false,
 		accountName: ''
@@ -83,6 +95,40 @@
 		}
 	}
 
+	function openGroupModal(accountName: string, mode: 'add' | 'remove', groupName = '') {
+		groupModal = { show: true, accountName, groupName, mode };
+	}
+
+	async function submitGroupChange() {
+		if (!groupModal.groupName) {
+			addNotification('error', 'Group name is required');
+			return;
+		}
+
+		const response = await kaniRequest(fetch, {
+			path: `v1/group/${groupModal.groupName}/_attr/member`,
+			method: groupModal.mode === 'add' ? 'POST' : 'DELETE',
+			body: [groupModal.accountName]
+		});
+
+		const { accountName, groupName, mode } = groupModal;
+		groupModal = { show: false, accountName: '', groupName: '', mode: 'add' };
+
+		if (response.status === 200) {
+			addNotification(
+				'success',
+				mode === 'add'
+					? `Added ${accountName} to ${groupName}`
+					: `Removed ${accountName} from ${groupName}`
+			);
+			await invalidateAll();
+		} else {
+			let msg = mode === 'add' ? 'Failed to add to group' : 'Failed to remove from group';
+			if (typeof response.body === 'string') msg = response.body.replace(/"/g, '');
+			addNotification('error', msg);
+		}
+	}
+
 	function openTokenModal(accountName: string) {
 		tokenModal = {
 			show: true,
@@ -95,7 +141,6 @@
 	}
 
 	function closeTokenModal() {
-		// If a token was generated, invalidate so the list reflects it
 		if (tokenModal.generatedToken) invalidateAll();
 		tokenModal = {
 			show: false,
@@ -129,7 +174,6 @@
 		});
 
 		if (response.status === 200) {
-			// Token value is only returned at generation time — strip surrounding quotes if JSON string
 			const raw = response.body;
 			tokenModal.generatedToken =
 				typeof raw === 'string' ? raw.replace(/^"|"$/g, '') : JSON.stringify(raw);
@@ -215,16 +259,65 @@
 	</div>
 {/if}
 
+<!-- Group membership modal -->
+{#if groupModal.show}
+	<div class="modal modal-open">
+		<div class="modal-box">
+			<h3 class="text-lg font-bold">
+				{groupModal.mode === 'add'
+					? `Add ${groupModal.accountName} to Group`
+					: `Remove ${groupModal.accountName} from Group`}
+			</h3>
+
+			<div class="mt-4">
+				{#if groupModal.mode === 'add'}
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Group Name</legend>
+						<input
+							type="text"
+							class="input w-full"
+							placeholder="my-group"
+							bind:value={groupModal.groupName}
+						/>
+						<p class="fieldset-label">Name of the group to join</p>
+					</fieldset>
+				{:else}
+					<p class="text-base-content/70 text-sm">
+						Remove from group: <strong>{groupModal.groupName}</strong>
+					</p>
+				{/if}
+			</div>
+
+			<div class="modal-action">
+				<button
+					class="btn btn-outline"
+					onclick={() => (groupModal = { show: false, accountName: '', groupName: '', mode: 'add' })}
+				>
+					Cancel
+				</button>
+				<button
+					class="btn {groupModal.mode === 'add' ? 'btn-primary' : 'btn-error'}"
+					onclick={submitGroupChange}
+					disabled={groupModal.mode === 'add' && !groupModal.groupName.trim()}
+				>
+					{groupModal.mode === 'add' ? 'Add to Group' : 'Remove from Group'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
 <!-- Generate API token modal -->
 {#if tokenModal.show}
 	<div class="modal modal-open">
 		<div class="modal-box max-w-lg">
 			<h3 class="text-lg font-bold">
-				{tokenModal.generatedToken ? 'Copy Your Token' : `Generate API Token — ${tokenModal.accountName}`}
+				{tokenModal.generatedToken
+					? 'Copy Your Token'
+					: `Generate API Token — ${tokenModal.accountName}`}
 			</h3>
 
 			{#if tokenModal.generatedToken}
-				<!-- Show the generated token -->
 				<div class="mt-4 space-y-4">
 					<div class="alert alert-warning">
 						<svg
@@ -243,17 +336,15 @@
 						<span>This token will <strong>not</strong> be shown again. Copy it now.</span>
 					</div>
 
-					<div class="form-control">
-						<label class="label">
-							<span class="label-text font-medium">API Token</span>
-						</label>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">API Token</legend>
 						<textarea
-							class="textarea textarea-bordered font-mono text-xs"
+							class="textarea w-full font-mono text-xs"
 							rows="5"
 							readonly
 							value={tokenModal.generatedToken}
 						></textarea>
-					</div>
+					</fieldset>
 
 					<button class="btn btn-primary w-full" onclick={copyToken}>
 						<svg
@@ -278,45 +369,32 @@
 					<button class="btn btn-outline" onclick={closeTokenModal}>Done</button>
 				</div>
 			{:else}
-				<!-- Token generation form -->
 				<div class="mt-4 space-y-4">
-					<div class="form-control">
-						<label class="label" for="token-label">
-							<span class="label-text font-medium">Label</span>
-							<span class="label-text-alt">Identifies this token</span>
-						</label>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Label</legend>
 						<input
-							id="token-label"
 							type="text"
-							class="input input-bordered"
+							class="input w-full"
 							placeholder="e.g. home-automation-script"
 							bind:value={tokenModal.label}
 						/>
-					</div>
+						<p class="fieldset-label">Identifies this token</p>
+					</fieldset>
 
-					<div class="form-control">
-						<label class="label" for="token-expiry">
-							<span class="label-text font-medium">Expiry</span>
-							<span class="label-text-alt">Leave blank for no expiry</span>
-						</label>
+					<fieldset class="fieldset">
+						<legend class="fieldset-legend">Expiry</legend>
 						<input
-							id="token-expiry"
 							type="datetime-local"
-							class="input input-bordered"
+							class="input w-full"
 							bind:value={tokenModal.expiry}
 						/>
-					</div>
+						<p class="fieldset-label">Leave blank for no expiry</p>
+					</fieldset>
 
-					<div class="form-control">
-						<label class="label cursor-pointer justify-start gap-4">
-							<input
-								type="checkbox"
-								class="checkbox"
-								bind:checked={tokenModal.readWrite}
-							/>
-							<span class="label-text">Read-write token (default is read-only)</span>
-						</label>
-					</div>
+					<label class="flex cursor-pointer items-center gap-3">
+						<input type="checkbox" class="checkbox" bind:checked={tokenModal.readWrite} />
+						<span class="text-sm">Read-write token (default is read-only)</span>
+					</label>
 				</div>
 
 				<div class="modal-action">
@@ -354,10 +432,7 @@
 									</div>
 									<div class="text-base-content/40 font-mono text-xs">{token.uuid}</div>
 								</div>
-								<button
-									class="btn btn-sm btn-error ml-4"
-									onclick={() => revokeToken(token.uuid)}
-								>
+								<button class="btn btn-sm btn-error ml-4" onclick={() => revokeToken(token.uuid)}>
 									Revoke
 								</button>
 							</div>
@@ -391,35 +466,29 @@
 			<div class="card-body">
 				<h2 class="card-title">Create Service Account</h2>
 
-				<div class="form-control">
-					<label class="label" for="sa-name">
-						<span class="label-text font-medium">Name</span>
-						<span class="label-text-alt">Unique identifier (lowercase, no spaces)</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Name</legend>
 					<input
-						id="sa-name"
 						type="text"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="my-service-account"
 						bind:value={createValues.name}
 					/>
-				</div>
+					<p class="fieldset-label">Unique identifier (lowercase, no spaces)</p>
+				</fieldset>
 
-				<div class="form-control">
-					<label class="label" for="sa-display-name">
-						<span class="label-text font-medium">Display Name</span>
-						<span class="label-text-alt">Human-readable description</span>
-					</label>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Display Name</legend>
 					<input
-						id="sa-display-name"
 						type="text"
-						class="input input-bordered"
+						class="input w-full"
 						placeholder="My Service Account"
 						bind:value={createValues.displayName}
 					/>
-				</div>
+					<p class="fieldset-label">Human-readable description</p>
+				</fieldset>
 
-				<div class="card-actions mt-6 justify-end">
+				<div class="card-actions mt-4 justify-end">
 					<button class="btn btn-outline" onclick={() => (showCreateForm = false)}>Cancel</button>
 					<button
 						class="btn btn-primary"
@@ -449,20 +518,38 @@
 						</div>
 
 						<div class="bg-base-100 rounded-lg p-3">
+							<div class="mb-2 flex items-center justify-between">
+								<div class="text-base-content/70 text-xs font-medium">Group Membership</div>
+								<button
+									class="btn btn-xs btn-primary"
+									onclick={() => openGroupModal(accountName, 'add')}
+								>
+									Add to Group
+								</button>
+							</div>
+							{#if account.attrs?.memberof?.length}
+								<div class="space-y-1">
+									{#each account.attrs.memberof as group}
+										<div class="bg-base-200 flex items-center justify-between rounded p-2">
+											<span class="text-xs">{group.split('@')[0]}</span>
+											<button
+												class="btn btn-xs btn-error"
+												onclick={() => openGroupModal(accountName, 'remove', group)}
+											>
+												Remove
+											</button>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<div class="text-base-content/50 text-xs italic">No group memberships</div>
+							{/if}
+						</div>
+
+						<div class="bg-base-100 rounded-lg p-3">
 							<div class="text-base-content/70 mb-1 text-xs font-medium">UUID</div>
 							<code class="text-xs break-all">{account.attrs?.uuid?.[0]}</code>
 						</div>
-
-						{#if account.attrs?.memberof?.length}
-							<div class="bg-base-100 rounded-lg p-3">
-								<div class="text-base-content/70 mb-2 text-xs font-medium">Member Of</div>
-								<div class="flex flex-wrap gap-1">
-									{#each account.attrs.memberof as group}
-										<span class="badge badge-outline badge-xs">{group.split('@')[0]}</span>
-									{/each}
-								</div>
-							</div>
-						{/if}
 					</div>
 
 					<div class="card-actions border-base-content/10 mt-4 flex-shrink-0 border-t pt-4">
