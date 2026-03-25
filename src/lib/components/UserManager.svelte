@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { kaniRequest, parseKanidmError } from '../../utils';
+	import { kaniRequest, parseKanidmError, copyToClipboard } from '../../utils';
 
 	const { data, addNotification } = $props();
 
@@ -374,14 +374,19 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
-				addNotification('success', `Credential status copied to clipboard for ${userName}`);
+				const ok = await copyToClipboard(JSON.stringify(result.body, null, 2));
+				addNotification(
+					ok ? 'success' : 'error',
+					ok
+						? `Credential status copied to clipboard for ${userName}`
+						: 'Clipboard unavailable — check browser permissions or use HTTPS'
+				);
 			} else {
-				addNotification('error', 'Failed to fetch credential status');
+				addNotification('error', parseKanidmError(result.body, 'Failed to fetch credential status'));
 			}
 		} catch (error) {
 			console.error(error);
-			addNotification('error', 'Failed to copy credential status to clipboard');
+			addNotification('error', 'Failed to fetch credential status');
 		}
 	}
 
@@ -397,10 +402,15 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(JSON.stringify(result.body, null, 2));
-				addNotification('success', `Credential update intent copied to clipboard for ${userName}`);
+				const ok = await copyToClipboard(JSON.stringify(result.body, null, 2));
+				addNotification(
+					ok ? 'success' : 'error',
+					ok
+						? `Credential update intent copied to clipboard for ${userName}`
+						: 'Clipboard unavailable — check browser permissions or use HTTPS'
+				);
 			} else {
-				addNotification('error', 'Failed to get credential update intent');
+				addNotification('error', parseKanidmError(result.body, 'Failed to get credential update intent'));
 			}
 		} catch (error) {
 			console.error(error);
