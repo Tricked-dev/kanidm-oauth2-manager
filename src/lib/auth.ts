@@ -12,7 +12,9 @@ interface CachedToken {
 }
 
 let tokenCache: CachedToken | null = null;
-const TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+// Kanidm's privileged ReadWrite window is ~5 min by default policy.
+// Cache at 4 min so we always re-auth before the privilege window closes.
+const TOKEN_CACHE_DURATION = 4 * 60 * 1000;
 
 async function postAuthStep(step: Record<string, any>, sessionId?: string): Promise<Response> {
 	const headers: Record<string, string> = { ...HEADERS };
