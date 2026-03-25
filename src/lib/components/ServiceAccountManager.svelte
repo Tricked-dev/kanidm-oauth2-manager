@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { kaniRequest } from '../../utils';
 
 	const { data, addNotification } = $props();
@@ -13,18 +14,22 @@
 		const serverAccounts: any[] = data.serviceAccounts?.body || [];
 		const serverNames = new Set(serverAccounts.map((a: any) => a.attrs?.name?.[0]));
 
-		// Drop accounts that were deleted on the server
-		localAccounts = localAccounts.filter((a: any) => serverNames.has(a.attrs?.name?.[0]));
+		// Use untrack so reading localAccounts doesn't make it a reactive
+		// dependency — otherwise the effect triggers itself in a cycle.
+		untrack(() => {
+			// Drop accounts that were deleted on the server
+			localAccounts = localAccounts.filter((a: any) => serverNames.has(a.attrs?.name?.[0]));
 
-		// Add accounts that were created on the server
-		for (const serverAcc of serverAccounts) {
-			const name = serverAcc.attrs?.name?.[0];
-			if (!localAccounts.find((a: any) => a.attrs?.name?.[0] === name)) {
-				localAccounts = [...localAccounts, serverAcc];
+			// Add accounts that were created on the server
+			for (const serverAcc of serverAccounts) {
+				const name = serverAcc.attrs?.name?.[0];
+				if (!localAccounts.find((a: any) => a.attrs?.name?.[0] === name)) {
+					localAccounts = [...localAccounts, serverAcc];
+				}
 			}
-		}
-		// Intentionally NOT updating memberof on existing accounts —
-		// the list endpoint omits it, and we track it locally below.
+			// Intentionally NOT updating memberof on existing accounts —
+			// the list endpoint omits it, and we track it locally below.
+		});
 	});
 
 	let showCreateForm = $state(false);
