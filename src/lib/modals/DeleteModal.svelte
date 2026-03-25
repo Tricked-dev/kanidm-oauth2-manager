@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { kaniRequest } from '../../utils';
+	import { kaniRequest, parseKanidmError } from '../../utils';
 	import { invalidateAll } from '$app/navigation';
 
 	interface DeleteModalState {
@@ -33,11 +33,7 @@
 			closeDeleteModal();
 			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to delete application';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to delete application'));
 		}
 	}
 </script>

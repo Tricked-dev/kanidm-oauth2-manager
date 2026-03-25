@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { kaniRequest } from '../../utils';
+	import { kaniRequest, parseKanidmError } from '../../utils';
 
 	const { data, addNotification } = $props();
 
@@ -140,18 +140,9 @@
 			delete editValues[userName];
 			addNotification('success', `Successfully updated user ${userName}`);
 		} else {
-			let errorMessage = 'Failed to update user';
-			if (response.status !== 200) {
-				if (
-					response.body &&
-					typeof response.body === 'object' &&
-					'invalidattribute' in response.body
-				) {
-					errorMessage = response.body.invalidattribute as string;
-				}
-			} else if (!unixUpdateSuccess) {
-				errorMessage = 'User attributes updated but Unix extension update failed';
-			}
+			const errorMessage = !unixUpdateSuccess && response.status === 200
+				? 'User attributes updated but Unix extension update failed'
+				: parseKanidmError(response.body, 'Failed to update user');
 			addNotification('error', errorMessage);
 		}
 	}
@@ -186,25 +177,9 @@
 			addNotification('success', `Successfully created user: ${createdUserName}`);
 			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to create user';
-			if (response.status === 403) {
-				errorMessage =
-					'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
-			} else if (response.body && typeof response.body === 'string') {
-				const bodyStr = response.body.replace(/"/g, '');
-				if (bodyStr === 'accessdenied') {
-					errorMessage =
-						'Access denied: You do not have permission to create users. Please contact your Kanidm administrator to grant you the necessary permissions.';
-				} else {
-					errorMessage = bodyStr;
-				}
-			} else if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
+			const errorMessage = response.status === 403
+				? 'Access denied. Check that your account has idm_people_admins privileges.'
+				: parseKanidmError(response.body, 'Failed to create user');
 			addNotification('error', errorMessage);
 		}
 	}
@@ -271,13 +246,7 @@
 			addNotification('success', `Successfully enabled Unix extension for ${userName}`);
 			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to enable Unix extension';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			} else if (response.body && typeof response.body === 'object') {
-				errorMessage = JSON.stringify(response.body);
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to enable Unix extension'));
 		}
 	}
 
@@ -367,11 +336,7 @@
 			addNotification('success', `Successfully added ${userName} to group ${groupName}`);
 			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to add user to group';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body.replace(/"/g, '');
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to add user to group'));
 		}
 	}
 
@@ -393,11 +358,7 @@
 			addNotification('success', `Successfully removed ${userName} from group ${groupName}`);
 			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to remove user from group';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body.replace(/"/g, '');
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to remove user from group'));
 		}
 	}
 

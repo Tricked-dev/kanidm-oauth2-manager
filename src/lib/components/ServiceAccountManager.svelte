@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { kaniRequest } from '../../utils';
+	import { kaniRequest, parseKanidmError } from '../../utils';
 
 	const { data, addNotification } = $props();
 
@@ -99,11 +99,7 @@
 			addNotification('success', `Created service account: ${name}`);
 			await invalidateAll();
 		} else {
-			let msg = 'Failed to create service account';
-			if (typeof response.body === 'string') msg = response.body.replace(/"/g, '');
-			else if (response.body && typeof response.body === 'object' && 'invalidattribute' in response.body)
-				msg = (response.body as any).invalidattribute;
-			addNotification('error', msg);
+			addNotification('error', parseKanidmError(response.body, 'Failed to create service account'));
 		}
 	}
 
@@ -118,7 +114,7 @@
 		if (response.status === 200) {
 			localAccounts = localAccounts.filter((a: any) => a.attrs?.name?.[0] !== name);
 			addNotification('success', `Deleted service account: ${name}`);
-			invalidateAll();
+			await invalidateAll();
 		} else {
 			addNotification('error', `Failed to delete ${name}`);
 		}
@@ -164,9 +160,7 @@
 				localAccounts[idx] = { ...account, attrs: { ...account.attrs, memberof: updated } };
 			}
 		} else {
-			let msg = mode === 'add' ? 'Failed to add to group' : 'Failed to remove from group';
-			if (typeof response.body === 'string') msg = response.body.replace(/"/g, '');
-			addNotification('error', msg);
+			addNotification('error', parseKanidmError(response.body, mode === 'add' ? 'Failed to add to group' : 'Failed to remove from group'));
 		}
 	}
 
@@ -181,8 +175,8 @@
 		};
 	}
 
-	function closeTokenModal() {
-		if (tokenModal.generatedToken) invalidateAll();
+	async function closeTokenModal() {
+		if (tokenModal.generatedToken) await invalidateAll();
 		tokenModal = {
 			show: false,
 			accountName: '',
@@ -219,9 +213,7 @@
 			tokenModal.generatedToken =
 				typeof raw === 'string' ? raw.replace(/^"|"$/g, '') : JSON.stringify(raw);
 		} else {
-			let msg = 'Failed to generate token';
-			if (typeof response.body === 'string') msg = response.body.replace(/"/g, '');
-			addNotification('error', msg);
+			addNotification('error', parseKanidmError(response.body, 'Failed to generate token'));
 		}
 	}
 

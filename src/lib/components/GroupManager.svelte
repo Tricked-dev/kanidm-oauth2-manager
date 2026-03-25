@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { kaniRequest } from '../../utils';
+	import { kaniRequest, parseKanidmError } from '../../utils';
 
 	const { data, addNotification } = $props();
 
@@ -64,15 +64,7 @@
 			delete editValues[groupName];
 			addNotification('success', `Successfully updated group ${groupName}`);
 		} else {
-			let errorMessage = 'Failed to update group';
-			if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to update group'));
 		}
 	}
 
@@ -103,17 +95,7 @@
 			createValues = { name: '', displayName: '', description: '' };
 			addNotification('success', `Successfully created group: ${createValues.name}`);
 		} else {
-			let errorMessage = 'Failed to create group';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			} else if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to create group'));
 		}
 	}
 

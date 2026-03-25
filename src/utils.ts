@@ -16,6 +16,23 @@ export const logo = {
 	url: ''
 };
 
+/**
+ * Extract a human-readable error string from a Kanidm API response body.
+ * Kanidm returns errors in several shapes depending on the operation:
+ *   - plain string  e.g. "\"some message\""
+ *   - { invalidattribute: "..." }
+ *   - { detail: "..." }
+ * Centralising this means one place to update when Kanidm changes its error format.
+ */
+export function parseKanidmError(body: unknown, fallback: string): string {
+	if (typeof body === 'string') return body.replace(/^"|"$/g, '');
+	if (body && typeof body === 'object') {
+		if ('invalidattribute' in body) return String((body as any).invalidattribute);
+		if ('detail' in body) return String((body as any).detail);
+	}
+	return fallback;
+}
+
 export async function kaniRequest<T>(f: typeof fetch, data: KaniRequest): Promise<KaniResponse<T>> {
 	let requestBody: string | FormData;
 	let headers: Record<string, string> = {};

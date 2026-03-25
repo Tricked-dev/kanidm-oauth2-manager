@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { kaniRequest } from '../../utils';
+	import { kaniRequest, parseKanidmError } from '../../utils';
 	import ScopeMapModal from '$lib/modals/ScopeMapModal.svelte';
 	import ClaimMapModal from '$lib/modals/ClaimMapModal.svelte';
 	import ImageModal from '$lib/modals/ImageModal.svelte';
@@ -127,11 +127,7 @@
 			if (response.status === 200) {
 				addNotification('success', `Successfully uploaded image for ${appName}`);
 			} else {
-				let errorMessage = 'Failed to upload image';
-				if (response.body && typeof response.body === 'string') {
-					errorMessage = response.body;
-				}
-				addNotification('error', errorMessage);
+				addNotification('error', parseKanidmError(response.body, 'Failed to upload image'));
 			}
 		} catch (error) {
 			console.error(error);
@@ -264,15 +260,7 @@
 			delete editValues[appName];
 			addNotification('success', `Successfully updated ${appName}`);
 		} else {
-			let errorMessage = 'Failed to update application';
-			if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to update application'));
 		}
 	}
 
@@ -309,19 +297,8 @@
 				type: 'basic'
 			};
 			addNotification('success', `Successfully created application: ${createValues.name}`);
-			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to create application';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			} else if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to create application'));
 		}
 	}
 </script>

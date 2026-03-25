@@ -33,6 +33,20 @@ function isBlockedUrl(url: string): boolean {
 	}
 }
 
+const USER_AGENT = 'Mozilla/5.0 (compatible; KanidmOAuth2Manager/1.0)';
+
+async function fetchImage(url: string): Promise<globalThis.Response | null> {
+	if (isBlockedUrl(url)) return null;
+	try {
+		const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+		const ct = res.headers.get('content-type') || '';
+		if (res.ok && ct.startsWith('image/')) return res;
+	} catch {
+		// ignore, try next candidate
+	}
+	return null;
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const { origin } = await request.json();
@@ -52,71 +66,48 @@ export const POST: RequestHandler = async ({ request }) => {
 			return Response.json({ error: 'Origin not allowed' }, { status: 403 });
 		}
 
-		const faviconUrls = [`${baseUrl}/favicon.png`, `${baseUrl}/favicon.svg`];
+		// 1. Try well-known direct paths (ico first — most common by far)
+		const directUrls = [
+			`${baseUrl}/favicon.ico`,
+			`${baseUrl}/favicon.png`,
+			`${baseUrl}/favicon.svg`
+		];
 
-		const userAgent = 'Mozilla/5.0 (compatible; KanidmOAuth2Manager/1.0)';
-
-		for (const faviconUrl of faviconUrls) {
-			try {
-				const response = await fetch(faviconUrl, {
-					method: 'GET',
-					headers: { 'User-Agent': userAgent }
+		for (const url of directUrls) {
+			const res = await fetchImage(url);
+			if (res) {
+				const ct = res.headers.get('content-type')!;
+				return new Response(await res.arrayBuffer(), {
+					headers: { 'content-type': ct, 'cache-control': 'public, max-age=3600' }
 				});
-
-				const contentType = response.headers.get('content-type') || '';
-
-				// Only return image if explicitly valid
-				if (response.ok && contentType.startsWith('image/')) {
-					const arrayBuffer = await response.arrayBuffer();
-					return new Response(arrayBuffer, {
-						headers: {
-							'content-type': contentType,
-							'cache-control': 'public, max-age=3600'
-						}
-					});
-				}
-
-				if (contentType.includes('html')) {
-					const html = await response.text();
-					const regex =
-						/<link\s[^>]*rel=["']?(?:shortcut\s+icon|icon|apple-touch-icon|mask-icon)["']?[^>]*href=["']([^"']+)["'][^>]*>/gi;
-
-					const links: string[] = [];
-					let match;
-					while ((match = regex.exec(html)) !== null) {
-						links.push(match[1]);
-					}
-
-					for (const href of links) {
-						const absoluteUrl = href.startsWith('http')
-							? href
-							: `${baseUrl}${href.startsWith('/') ? '' : '/'}${href}`;
-						if (isBlockedUrl(absoluteUrl)) continue;
-						try {
-							const iconRes = await fetch(absoluteUrl, {
-								method: 'GET',
-								headers: { 'User-Agent': userAgent }
-							});
-
-							const iconType = iconRes.headers.get('content-type') || '';
-
-							if (iconRes.ok && iconType.startsWith('image/')) {
-								const buffer = await iconRes.arrayBuffer();
-								return new Response(buffer, {
-									headers: {
-										'content-type': iconType,
-										'cache-control': 'public, max-age=3600'
-									}
-								});
-							}
-						} catch {
-							continue;
-						}
-					}
-				}
-			} catch {
-				continue;
 			}
+		}
+
+		// 2. Fetch the root page and parse <link rel="icon"> tags
+		try {
+			const rootRes = await fetch(baseUrl, { headers: { 'User-Agent': USER_AGENT } });
+			const rootCt = rootRes.headers.get('content-type') || '';
+			if (rootRes.ok && rootCt.includes('html')) {
+				const html = await rootRes.text();
+				const regex =
+					/<link\s[^>]*rel=["']?(?:shortcut\s+icon|icon|apple-touch-icon|mask-icon)["']?[^>]*href=["']([^"']+)["'][^>]*>/gi;
+				let match;
+				while ((match = regex.exec(html)) !== null) {
+					const href = match[1];
+					const absoluteUrl = href.startsWith('http')
+						? href
+						: `${baseUrl}${href.startsWith('/') ? '' : '/'}${href}`;
+					const res = await fetchImage(absoluteUrl);
+					if (res) {
+						const ct = res.headers.get('content-type')!;
+						return new Response(await res.arrayBuffer(), {
+							headers: { 'content-type': ct, 'cache-control': 'public, max-age=3600' }
+						});
+					}
+				}
+			}
+		} catch {
+			// root page unreachable — fall through to 404
 		}
 
 		return Response.json(
@@ -125,11 +116,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 	} catch (error) {
 		console.error('Error fetching favicon:', error);
-		return Response.json(
-			{ error: 'Server error while fetching favicon' },
-			{
-				status: 500
-			}
-		);
+		return Response.json({ error: 'Server error while fetching favicon' }, { status: 500 });
 	}
 };

@@ -31,8 +31,9 @@ async function login(
 	username: string,
 	password: string
 ): Promise<{ sessionid: string; state: { success: string }; sessionId: string }> {
-	// Step 1: Initialize session
-	const initRes = await postAuthStep({ init: username });
+	// Step 1: Initialize session (privileged:true requests a non-limited session
+	// so that write operations such as create group / generate token are allowed)
+	const initRes = await postAuthStep({ init2: { username, issue: 'token', privileged: true } });
 	const sessionId = initRes.headers.get('x-kanidm-auth-session-id');
 	if (!sessionId) throw new Error('Session ID missing');
 
@@ -44,6 +45,10 @@ async function login(
 
 	const authJson = await authRes.json();
 	return { ...authJson, sessionJwt: sessionId };
+}
+
+export function clearTokenCache() {
+	tokenCache = null;
 }
 
 export async function getCachedToken(): Promise<string> {
