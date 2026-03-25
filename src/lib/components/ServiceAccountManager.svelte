@@ -4,6 +4,13 @@
 
 	const { data, addNotification } = $props();
 
+	// Local copy of accounts so we can update group memberships immediately
+	// without waiting for invalidateAll() to round-trip through the server.
+	let localAccounts = $state<any[]>(data.serviceAccounts?.body || []);
+	$effect(() => {
+		localAccounts = data.serviceAccounts?.body || [];
+	});
+
 	let showCreateForm = $state(false);
 	let createValues = $state({ name: '', displayName: '' });
 
@@ -86,10 +93,11 @@
 		});
 
 		deleteModal = { show: false, accountName: '' };
-		await invalidateAll();
 
 		if (response.status === 200) {
+			localAccounts = localAccounts.filter((a: any) => a.attrs?.name?.[0] !== name);
 			addNotification('success', `Deleted service account: ${name}`);
+			invalidateAll();
 		} else {
 			addNotification('error', `Failed to delete ${name}`);
 		}
@@ -115,13 +123,29 @@
 		groupModal = { show: false, accountName: '', groupName: '', mode: 'add' };
 
 		if (response.status === 200) {
+			// Optimistically update local state so the card reflects the change
+			// immediately, before invalidateAll() re-fetches from the server.
+			const idx = localAccounts.findIndex((a: any) => a.attrs?.name?.[0] === accountName);
+			if (idx >= 0) {
+				const account = localAccounts[idx];
+				const current: string[] = account.attrs?.memberof || [];
+				const updated =
+					mode === 'add'
+						? [...current, groupName]
+						: current.filter((g: string) => g !== groupName);
+				localAccounts[idx] = {
+					...account,
+					attrs: { ...account.attrs, memberof: updated }
+				};
+			}
+
 			addNotification(
 				'success',
 				mode === 'add'
 					? `Added ${accountName} to ${groupName}`
 					: `Removed ${accountName} from ${groupName}`
 			);
-			await invalidateAll();
+			invalidateAll(); // background sync — don't await
 		} else {
 			let msg = mode === 'add' ? 'Failed to add to group' : 'Failed to remove from group';
 			if (typeof response.body === 'string') msg = response.body.replace(/"/g, '');
@@ -503,7 +527,7 @@
 	{/if}
 
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-		{#each data.serviceAccounts?.body || [] as account}
+		{#each localAccounts as account}
 			{@const accountName = account.attrs?.name?.[0]}
 			<div class="card bg-base-300 flex w-full flex-col">
 				<div class="card-body flex flex-1 flex-col">
