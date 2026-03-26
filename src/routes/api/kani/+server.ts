@@ -37,14 +37,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		const jsonData = formData.get('json') as string;
 		data = JSON.parse(jsonData);
 
-		// Create new FormData with the file for the Kanidm API
-		const kanidmFormData = new FormData();
+		// Kanidm's image endpoint expects raw binary with the file's content-type,
+		// not a multipart envelope. Extract the file and send it as raw bytes.
 		const imageFile = formData.get('image') as File;
 		if (imageFile) {
-			kanidmFormData.append('image', imageFile);
+			requestBody = new Uint8Array(await imageFile.arrayBuffer());
+			requestHeaders['content-type'] = imageFile.type;
 		}
-		requestBody = kanidmFormData;
-		// Don't set content-type header for multipart, let fetch handle it
 	} else {
 		// Handle JSON data
 		data = await request.json();

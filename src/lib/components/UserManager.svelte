@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { kaniRequest, parseKanidmError, copyToClipboard } from '../../utils';
+	import { kaniRequest, parseKanidmError, buildAttrs, handleKaniResponse } from '../kanidm';
+	import { copyWithNotification } from '../../utils';
 
 	const { data, addNotification } = $props();
 
@@ -275,13 +276,7 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				const ok = await copyToClipboard(JSON.stringify(result.body, null, 2));
-				addNotification(
-					ok ? 'success' : 'error',
-					ok
-						? `SSH keys copied to clipboard for ${userName}`
-						: 'Clipboard unavailable — check browser permissions or use HTTPS'
-				);
+				await copyWithNotification(JSON.stringify(result.body, null, 2), `SSH keys copied to clipboard for ${userName}`, addNotification);
 			} else {
 				addNotification('error', parseKanidmError(result.body, 'Failed to fetch SSH keys'));
 			}
@@ -382,13 +377,7 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				const ok = await copyToClipboard(JSON.stringify(result.body, null, 2));
-				addNotification(
-					ok ? 'success' : 'error',
-					ok
-						? `Credential status copied to clipboard for ${userName}`
-						: 'Clipboard unavailable — check browser permissions or use HTTPS'
-				);
+				await copyWithNotification(JSON.stringify(result.body, null, 2), `Credential status copied to clipboard for ${userName}`, addNotification);
 			} else {
 				addNotification('error', parseKanidmError(result.body, 'Failed to fetch credential status'));
 			}
@@ -410,13 +399,7 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				const ok = await copyToClipboard(JSON.stringify(result.body, null, 2));
-				addNotification(
-					ok ? 'success' : 'error',
-					ok
-						? `Credential update intent copied to clipboard for ${userName}`
-						: 'Clipboard unavailable — check browser permissions or use HTTPS'
-				);
+				await copyWithNotification(JSON.stringify(result.body, null, 2), `Credential update intent copied to clipboard for ${userName}`, addNotification);
 			} else {
 				addNotification('error', parseKanidmError(result.body, 'Failed to get credential update intent'));
 			}

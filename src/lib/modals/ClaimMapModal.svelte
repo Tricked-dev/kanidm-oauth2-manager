@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { kaniRequest, parseKanidmError } from '../../utils';
-	import { invalidateAll } from '$app/navigation';
+	import { kaniRequest, parseKanidmError, handleKaniResponse } from '../kanidm';
 
 	interface ClaimMapModalState {
 		show: boolean;
@@ -48,13 +47,12 @@
 			body: joinStrategy
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Set join strategy for claim "${claimName}" to "${joinStrategy}"`);
-			closeClaimMapModal();
-			await invalidateAll();
-		} else {
-			addNotification('error', parseKanidmError(response.body, 'Failed to set claim map join strategy'));
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Set join strategy for claim "${claimName}" to "${joinStrategy}"`,
+			errorMessage: 'Failed to set claim map join strategy',
+			addNotification,
+			onSuccess: closeClaimMapModal
+		});
 	}
 
 	async function addClaimMap(appName: string) {
@@ -93,13 +91,12 @@
 			method: 'DELETE'
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Removed claim map for "${claimName}" and group "${groupName}"`);
-			closeClaimMapModal();
-			await invalidateAll();
-		} else {
-			addNotification('error', parseKanidmError(response.body, 'Failed to remove claim map'));
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Removed claim map for "${claimName}" and group "${groupName}"`,
+			errorMessage: 'Failed to remove claim map',
+			addNotification,
+			onSuccess: closeClaimMapModal
+		});
 	}
 </script>
 

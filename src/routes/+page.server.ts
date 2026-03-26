@@ -1,7 +1,8 @@
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 import type { Load } from '@sveltejs/kit';
-import { kaniRequest, logo } from '../utils';
+import { kaniRequest } from '../lib/kanidm';
+import { logo } from '../utils';
 
 export const load: Load = async ({ fetch, url }) => {
 	// Fetch OAuth2 applications

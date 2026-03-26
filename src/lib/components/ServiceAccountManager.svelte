@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { kaniRequest, parseKanidmError, copyToClipboard } from '../../utils';
+	import { kaniRequest, parseKanidmError, buildAttrs, handleKaniResponse } from '../kanidm';
+	import { copyWithNotification } from '../../utils';
 
 	const { data, addNotification } = $props();
 
@@ -80,29 +81,21 @@
 
 	async function createServiceAccount() {
 		if (!createValues.name || !createValues.displayName) return;
+		const name = createValues.name;
 
 		const response = await kaniRequest(fetch, {
 			path: 'v1/service_account',
 			method: 'POST',
-			body: {
-				attrs: {
-					name: [createValues.name.trim().toLowerCase()],
-					displayname: [createValues.displayName.trim()]
-				}
-			}
+			body: { attrs: buildAttrs({ name: name.toLowerCase(), displayname: createValues.displayName }) }
 		});
 
-		if (response.status === 200) {
-			const name = createValues.name;
-			showCreateForm = false;
-			createValues = { name: '', displayName: '' };
-			addNotification('success', `Created service account: ${name}`);
-			await invalidateAll();
-		} else if (response.status === 409) {
-			addNotification('error', `Name "${createValues.name}" is already taken — choose a different name`);
-		} else {
-			addNotification('error', parseKanidmError(response.body, 'Failed to create service account'));
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Created service account: ${name}`,
+			errorMessage: 'Failed to create service account',
+			addNotification,
+			onSuccess: () => { showCreateForm = false; createValues = { name: '', displayName: '' }; },
+			statusMessages: { 409: `Name "${name}" is already taken — choose a different name` }
+		});
 	}
 
 	async function deleteServiceAccount(name: string) {
@@ -111,15 +104,15 @@
 			method: 'DELETE'
 		});
 
-		deleteModal = { show: false, accountName: '' };
-
-		if (response.status === 200) {
-			localAccounts = localAccounts.filter((a: any) => a.attrs?.name?.[0] !== name);
-			addNotification('success', `Deleted service account: ${name}`);
-			await invalidateAll();
-		} else {
-			addNotification('error', `Failed to delete ${name}`);
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Deleted service account: ${name}`,
+			errorMessage: `Failed to delete ${name}`,
+			addNotification,
+			onSuccess: () => {
+				deleteModal = { show: false, accountName: '' };
+				localAccounts = localAccounts.filter((a: any) => a.attrs?.name?.[0] !== name);
+			}
+		});
 	}
 
 	function openGroupModal(accountName: string, mode: 'add' | 'remove', groupName = '') {
@@ -220,11 +213,7 @@
 	}
 
 	async function copyToken() {
-		const ok = await copyToClipboard(tokenModal.generatedToken);
-		addNotification(
-			ok ? 'success' : 'error',
-			ok ? 'Token copied to clipboard' : 'Clipboard unavailable — check browser permissions or use HTTPS'
-		);
+		await copyWithNotification(tokenModal.generatedToken, 'Token copied to clipboard', addNotification);
 	}
 
 	async function openTokenList(accountName: string) {

@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { kaniRequest } from '../../utils';
-	import { invalidate } from '$app/navigation';
+	import { kaniRequest, parseKanidmError, handleKaniResponse } from '../kanidm';
 	import { base } from '$app/paths';
 	import Cropper from 'svelte-easy-crop';
 
@@ -218,17 +217,12 @@
 				formData: formData
 			});
 
-			if (response.status === 200) {
-				addNotification('success', `Successfully uploaded image for ${appName}`);
-				closeImageModal();
-				await invalidate(() => true);
-			} else {
-				let errorMessage = 'Failed to upload image';
-				if (response.body && typeof response.body === 'string') {
-					errorMessage = response.body;
-				}
-				addNotification('error', errorMessage);
-			}
+			await handleKaniResponse(response, {
+				successMessage: `Successfully uploaded image for ${appName}`,
+				errorMessage: 'Failed to upload image',
+				addNotification,
+				onSuccess: closeImageModal
+			});
 		} catch (error) {
 			console.error(error);
 			addNotification('error', 'Network error while uploading image');
@@ -241,17 +235,12 @@
 			method: 'DELETE'
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Removed image for ${appName}`);
-			closeImageModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to remove image';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Removed image for ${appName}`,
+			errorMessage: 'Failed to remove image',
+			addNotification,
+			onSuccess: closeImageModal
+		});
 	}
 </script>
 
