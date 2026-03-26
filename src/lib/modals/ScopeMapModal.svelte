@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { kaniRequest } from '../../utils';
-	import { invalidate } from '$app/navigation';
+	import { kaniRequest, parseKanidmError, handleKaniResponse } from '../kanidm';
 
 	interface ScopeMapModalState {
 		show: boolean;
@@ -51,17 +50,12 @@
 			body: scopesArray
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Added scope map for ${scopeMapForm.groupName}`);
-			closeScopeMapModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to add scope map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Added scope map for ${scopeMapForm.groupName}`,
+			errorMessage: 'Failed to add scope map',
+			addNotification,
+			onSuccess: closeScopeMapModal
+		});
 	}
 
 	async function deleteScopeMap(appName: string, groupName: string) {
@@ -70,17 +64,12 @@
 			method: 'DELETE'
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Removed scope map for ${groupName}`);
-			closeScopeMapModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to remove scope map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Removed scope map for ${groupName}`,
+			errorMessage: 'Failed to remove scope map',
+			addNotification,
+			onSuccess: closeScopeMapModal
+		});
 	}
 </script>
 

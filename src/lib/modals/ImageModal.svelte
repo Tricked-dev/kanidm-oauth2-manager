@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { kaniRequest } from '../../utils';
-	import { invalidate } from '$app/navigation';
+	import { kaniRequest, parseKanidmError, handleKaniResponse } from '../kanidm';
 	import { base } from '$app/paths';
 	import Cropper from 'svelte-easy-crop';
 
@@ -209,29 +208,29 @@
 
 	async function uploadImage(appName: string, file: File) {
 		try {
-			const formData = new FormData();
-			formData.append('image', file);
+			// Convert to base64 so the proxy can send raw bytes with the correct
+			// content-type to Kanidm (avoids multipart/FormData which Kanidm rejects).
+			const bytes = new Uint8Array(await file.arrayBuffer());
+			let binary = '';
+			for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+			const base64 = btoa(binary);
 
 			const response = await kaniRequest(fetch, {
 				path: `v1/oauth2/${appName}/_image`,
 				method: 'POST',
-				formData: formData
+				contentType: file.type,
+				body: base64
 			});
 
-			if (response.status === 200) {
-				addNotification('success', `Successfully uploaded image for ${appName}`);
-				closeImageModal();
-				await invalidate(() => true);
-			} else {
-				let errorMessage = 'Failed to upload image';
-				if (response.body && typeof response.body === 'string') {
-					errorMessage = response.body;
-				}
-				addNotification('error', errorMessage);
-			}
-		} catch (error) {
+			await handleKaniResponse(response, {
+				successMessage: `Successfully uploaded image for ${appName}`,
+				errorMessage: 'Failed to upload image',
+				addNotification,
+				onSuccess: closeImageModal
+			});
+		} catch (error: any) {
 			console.error(error);
-			addNotification('error', 'Network error while uploading image');
+			addNotification('error', `Upload failed: ${error?.message ?? 'Unknown error'}`);
 		}
 	}
 
@@ -241,17 +240,12 @@
 			method: 'DELETE'
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Removed image for ${appName}`);
-			closeImageModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to remove image';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Removed image for ${appName}`,
+			errorMessage: 'Failed to remove image',
+			addNotification,
+			onSuccess: closeImageModal
+		});
 	}
 </script>
 

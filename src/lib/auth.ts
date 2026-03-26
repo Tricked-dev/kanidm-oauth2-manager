@@ -12,7 +12,9 @@ interface CachedToken {
 }
 
 let tokenCache: CachedToken | null = null;
-const TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+// Kanidm's privileged ReadWrite window is ~5 min by default policy.
+// Cache at 4 min so we always re-auth before the privilege window closes.
+const TOKEN_CACHE_DURATION = 4 * 60 * 1000;
 
 async function postAuthStep(step: Record<string, any>, sessionId?: string): Promise<Response> {
 	const headers: Record<string, string> = { ...HEADERS };
@@ -31,8 +33,9 @@ async function login(
 	username: string,
 	password: string
 ): Promise<{ sessionid: string; state: { success: string }; sessionId: string }> {
-	// Step 1: Initialize session
-	const initRes = await postAuthStep({ init: username });
+	// Step 1: Initialize session (privileged:true requests a non-limited session
+	// so that write operations such as create group / generate token are allowed)
+	const initRes = await postAuthStep({ init2: { username, issue: 'token', privileged: true } });
 	const sessionId = initRes.headers.get('x-kanidm-auth-session-id');
 	if (!sessionId) throw new Error('Session ID missing');
 
@@ -44,6 +47,10 @@ async function login(
 
 	const authJson = await authRes.json();
 	return { ...authJson, sessionJwt: sessionId };
+}
+
+export function clearTokenCache() {
+	tokenCache = null;
 }
 
 export async function getCachedToken(): Promise<string> {

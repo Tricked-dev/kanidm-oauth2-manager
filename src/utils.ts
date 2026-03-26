@@ -1,51 +1,48 @@
-import { base } from '$app/paths';
-
-interface KaniRequest {
-	method?: 'POST' | 'GET' | 'PATCH' | 'DELETE' | 'PUT';
-	body?: any;
-	path: string;
-	contentType?: string;
-	formData?: FormData;
-}
-interface KaniResponse<T> {
-	status: number;
-	body: T;
-}
-
 export const logo = {
 	url: ''
 };
 
-export async function kaniRequest<T>(f: typeof fetch, data: KaniRequest): Promise<KaniResponse<T>> {
-	let requestBody: string | FormData;
-	let headers: Record<string, string> = {};
-
-	if (data.formData) {
-		let form = data.formData;
-		delete data['formData'];
-		form.set('json', JSON.stringify(data));
-		requestBody = form;
-	} else {
-		requestBody = JSON.stringify(data);
-		headers['Content-Type'] = 'application/json';
+/**
+ * Copy text to clipboard. Falls back to execCommand for non-secure contexts
+ * (e.g. plain HTTP access to the HA addon without ingress).
+ * Returns true if the copy succeeded by any method.
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+	try {
+		await navigator.clipboard.writeText(text);
+		return true;
+	} catch {
+		// Fallback: insert a temporary textarea and use the legacy execCommand API.
+		// Works in plain-HTTP contexts where the Clipboard API is unavailable.
+		try {
+			const el = document.createElement('textarea');
+			el.value = text;
+			el.style.position = 'fixed';
+			el.style.opacity = '0';
+			document.body.appendChild(el);
+			el.focus();
+			el.select();
+			const ok = document.execCommand('copy');
+			document.body.removeChild(el);
+			return ok;
+		} catch {
+			return false;
+		}
 	}
+}
 
-	const result = await f(`${base}/api/kani`, {
-		method: 'POST',
-		headers,
-		body: requestBody
-	});
-
-	const response = await result.json();
-
-	// Debug logging in development mode
-	if (import.meta.env.DEV && response.status >= 400) {
-		console.group(`🚨 Kanidm API Error: ${data.method || 'GET'} ${data.path}`);
-		console.error('Status:', response.status);
-		console.error('Response Body:', JSON.stringify(response.body));
-		console.error('Full Request:', JSON.stringify(data));
-		console.groupEnd();
-	}
-
-	return response;
+/**
+ * Copy text to clipboard and show a success/failure notification.
+ * Wraps copyToClipboard so callers don't repeat the ok/error pattern.
+ */
+export async function copyWithNotification(
+	text: string,
+	successMsg: string,
+	addNotification: (type: 'success' | 'error' | 'info', msg: string) => void
+): Promise<void> {
+	const ok = await copyToClipboard(text);
+	addNotification(
+		ok ? 'success' : 'error',
+		ok ? successMsg : 'Clipboard unavailable — check browser permissions or use HTTPS'
+	);
 }

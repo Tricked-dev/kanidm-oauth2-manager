@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { getCachedToken } from '$lib/auth';
+import { getCachedToken, clearTokenCache } from '$lib/auth';
 
 // Allowlist of valid Kanidm API path prefixes.
 // Prevents the proxy from being used to reach arbitrary endpoints on the
@@ -10,7 +10,8 @@ const ALLOWED_PATH_PREFIXES = [
 	'v1/oauth2',
 	'v1/group',
 	'v1/person',
-	'v1/account'
+	'v1/account',
+	'v1/service_account'
 ];
 
 function isAllowedPath(path: string): boolean {
@@ -36,14 +37,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		const jsonData = formData.get('json') as string;
 		data = JSON.parse(jsonData);
 
-		// Create new FormData with the file for the Kanidm API
-		const kanidmFormData = new FormData();
+		// Kanidm's image endpoint expects raw binary with the file's content-type,
+		// not a multipart envelope. Extract the file and send it as raw bytes.
 		const imageFile = formData.get('image') as File;
 		if (imageFile) {
-			kanidmFormData.append('image', imageFile);
+			requestBody = new Uint8Array(await imageFile.arrayBuffer());
+			requestHeaders['content-type'] = imageFile.type;
 		}
-		requestBody = kanidmFormData;
-		// Don't set content-type header for multipart, let fetch handle it
 	} else {
 		// Handle JSON data
 		data = await request.json();
@@ -68,14 +68,27 @@ export const POST: RequestHandler = async ({ request }) => {
 		return Response.json({ status: 403, body: 'Path not allowed' }, { status: 403 });
 	}
 
+	async function doFetch(token: string) {
+		return fetch(`${env.KANIDM_BASE_URL}/${data.path}`, {
+			method: data.method,
+			headers: { ...requestHeaders, Authorization: `Bearer ${token}` },
+			body: requestBody
+		});
+	}
+
 	if (import.meta.env.DEV) {
 		console.log('fetching path:', `${env.KANIDM_BASE_URL}/${data.path}`);
 	}
-	const result = await fetch(`${env.KANIDM_BASE_URL}/${data.path}`, {
-		method: data.method,
-		headers: requestHeaders,
-		body: requestBody
-	});
+
+	let result = await doFetch(token);
+
+	// If Kanidm rejects the token (e.g. session expired / server restarted),
+	// clear the cache and retry once with a fresh token.
+	if (result.status === 401) {
+		clearTokenCache();
+		const freshToken = await getCachedToken();
+		result = await doFetch(freshToken);
+	}
 
 	if (!result.ok) {
 		if (import.meta.env.DEV) {
@@ -89,14 +102,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	let res;
-	let ct = result.headers.get('content-type') ?? '';
+	const ct = result.headers.get('content-type') ?? '';
+	const kopid = result.headers.get('x-kanidm-opid') ?? undefined;
 	if (!ct.includes('json')) {
-		res = {
-			status: result.status,
-			body: await result.text()
-		};
+		res = { status: result.status, body: await result.text(), kopid };
 	} else {
-		res = { status: result.status, body: await result.json() };
+		res = { status: result.status, body: await result.json(), kopid };
 	}
 	if (import.meta.env.DEV) {
 		console.log(res);

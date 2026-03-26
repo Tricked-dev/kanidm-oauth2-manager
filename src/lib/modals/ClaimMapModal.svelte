@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { kaniRequest } from '../../utils';
-	import { invalidate } from '$app/navigation';
+	import { kaniRequest, parseKanidmError, handleKaniResponse } from '../kanidm';
 
 	interface ClaimMapModalState {
 		show: boolean;
@@ -48,17 +47,12 @@
 			body: joinStrategy
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Set join strategy for claim "${claimName}" to "${joinStrategy}"`);
-			closeClaimMapModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to set claim map join strategy';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Set join strategy for claim "${claimName}" to "${joinStrategy}"`,
+			errorMessage: 'Failed to set claim map join strategy',
+			addNotification,
+			onSuccess: closeClaimMapModal
+		});
 	}
 
 	async function addClaimMap(appName: string) {
@@ -81,17 +75,12 @@
 		if (response.status === 200) {
 			addNotification('success', `Added claim map for "${claimMapForm.claimName}" and group "${claimMapForm.groupName}"`);
 			closeClaimMapModal();
-			await invalidate(() => true);
+			await invalidateAll();
 		} else {
-			let errorMessage = 'Failed to add claim map';
-			if (response.body && typeof response.body === 'string') {
-				const body = response.body.replace(/"/g, '');
-				if (body === 'nomatchingentries') {
-					errorMessage = `Group "${claimMapForm.groupName}" does not exist. Please create the group first or check the group name.`;
-				} else {
-					errorMessage = body;
-				}
-			}
+			const raw = parseKanidmError(response.body, 'Failed to add claim map');
+			const errorMessage = raw === 'nomatchingentries'
+				? `Group "${claimMapForm.groupName}" does not exist — create it first or check the name`
+				: raw;
 			addNotification('error', errorMessage);
 		}
 	}
@@ -102,17 +91,12 @@
 			method: 'DELETE'
 		});
 
-		if (response.status === 200) {
-			addNotification('success', `Removed claim map for "${claimName}" and group "${groupName}"`);
-			closeClaimMapModal();
-			await invalidate(() => true);
-		} else {
-			let errorMessage = 'Failed to remove claim map';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			}
-			addNotification('error', errorMessage);
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Removed claim map for "${claimName}" and group "${groupName}"`,
+			errorMessage: 'Failed to remove claim map',
+			addNotification,
+			onSuccess: closeClaimMapModal
+		});
 	}
 </script>
 

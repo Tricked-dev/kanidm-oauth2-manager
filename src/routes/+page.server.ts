@@ -1,7 +1,8 @@
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 import type { Load } from '@sveltejs/kit';
-import { kaniRequest, logo } from '../utils';
+import { kaniRequest } from '../lib/kanidm';
+import { logo } from '../utils';
 
 export const load: Load = async ({ fetch, url }) => {
 	// Fetch OAuth2 applications
@@ -25,6 +26,13 @@ export const load: Load = async ({ fetch, url }) => {
 		body: { attrs: Record<string, string[]> }[];
 	};
 
+	// Fetch service accounts
+	const serviceAccountsResult = (await kaniRequest(fetch, {
+		path: 'v1/service_account'
+	}).catch(() => ({ body: [] }))) as {
+		body: { attrs: Record<string, string[]> }[];
+	};
+
 	// Handle logo detection for OAuth2 apps
 	appsResult.body.forEach((app) =>
 		app.attrs.oauth2_rs_origin?.forEach((origin) => {
@@ -40,6 +48,7 @@ export const load: Load = async ({ fetch, url }) => {
 		home: env.KANIDM_BASE_URL,
 		apps: appsResult,
 		groups: groupsResult,
-		users: usersResult
+		users: usersResult,
+		serviceAccounts: serviceAccountsResult
 	};
 };
