@@ -102,14 +102,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	let res;
-	let ct = result.headers.get('content-type') ?? '';
+	const ct = result.headers.get('content-type') ?? '';
+	const kopid = result.headers.get('x-kanidm-opid') ?? undefined;
 	if (!ct.includes('json')) {
-		res = {
-			status: result.status,
-			body: await result.text()
-		};
+		res = { status: result.status, body: await result.text(), kopid };
 	} else {
-		res = { status: result.status, body: await result.json() };
+		res = { status: result.status, body: await result.json(), kopid };
 	}
 	if (import.meta.env.DEV) {
 		console.log(res);

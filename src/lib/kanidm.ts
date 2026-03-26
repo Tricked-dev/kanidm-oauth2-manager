@@ -16,6 +16,8 @@ export interface KaniRequest {
 export interface KaniResponse<T> {
 	status: number;
 	body: T;
+	/** Kanidm operation ID — matches the kopid in server logs for easy correlation. */
+	kopid?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,12 +133,13 @@ export async function handleKaniResponse<T>(
 		return true;
 	}
 
+	const kopidSuffix = response.kopid ? ` [${response.kopid.slice(0, 8)}]` : '';
 	const specific = options.statusMessages?.[response.status];
 	if (specific) {
-		options.addNotification('error', specific);
+		options.addNotification('error', specific + kopidSuffix);
 		return false;
 	}
 
-	options.addNotification('error', parseKanidmError(response.body, options.errorMessage));
+	options.addNotification('error', parseKanidmError(response.body, options.errorMessage) + kopidSuffix);
 	return false;
 }
