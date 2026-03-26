@@ -70,37 +70,25 @@
 	}
 
 	async function createGroup() {
-		if (!createValues.name || !createValues.displayName) {
-			return;
-		}
-
-		const attrs: Record<string, string[]> = {
-			name: [createValues.name.trim().toLowerCase()],
-			displayname: [createValues.displayName.trim()]
-		};
-
-		if (createValues.description?.trim()) {
-			attrs.description = [createValues.description.trim()];
-		}
+		if (!createValues.name || !createValues.displayName) return;
+		const name = createValues.name;
 
 		const response = await kaniRequest(fetch, {
 			path: 'v1/group',
 			method: 'POST',
-			body: { attrs }
+			body: { attrs: buildAttrs({ name: name.toLowerCase(), displayname: createValues.displayName, description: createValues.description }) }
 		});
 
-		await invalidateAll();
-
-		if (response.status === 200) {
-			const name = createValues.name;
-			showCreateForm = false;
-			createValues = { name: '', displayName: '', description: '' };
-			addNotification('success', `Successfully created group: ${name}`);
-		} else if (response.status === 409) {
-			addNotification('error', `Name "${createValues.name}" is already taken — choose a different name`);
-		} else {
-			addNotification('error', parseKanidmError(response.body, 'Failed to create group'));
-		}
+		await handleKaniResponse(response, {
+			successMessage: `Successfully created group: ${name}`,
+			errorMessage: 'Failed to create group',
+			addNotification,
+			onSuccess: () => { showCreateForm = false; createValues = { name: '', displayName: '', description: '' }; },
+			statusMessages: {
+				403: 'Access denied — check that your account has group management privileges',
+				409: `Name "${name}" is already taken — choose a different name`
+			}
+		});
 	}
 
 	async function deleteGroup(groupName: string) {
