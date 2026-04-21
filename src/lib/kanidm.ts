@@ -1,10 +1,6 @@
 import { base } from '$app/paths';
 import { invalidateAll } from '$app/navigation';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface KaniRequest {
 	method?: 'POST' | 'GET' | 'PATCH' | 'DELETE' | 'PUT';
 	body?: any;
@@ -19,10 +15,6 @@ export interface KaniResponse<T> {
 	/** Kanidm operation ID — matches the kopid in server logs for easy correlation. */
 	kopid?: string;
 }
-
-// ---------------------------------------------------------------------------
-// API proxy
-// ---------------------------------------------------------------------------
 
 /** Typed proxy to the internal /api/kani endpoint. */
 export async function kaniRequest<T>(f: typeof fetch, data: KaniRequest): Promise<KaniResponse<T>> {
@@ -58,10 +50,6 @@ export async function kaniRequest<T>(f: typeof fetch, data: KaniRequest): Promis
 	return response;
 }
 
-// ---------------------------------------------------------------------------
-// Error handling
-// ---------------------------------------------------------------------------
-
 /**
  * Extract a human-readable error string from a Kanidm API response body.
  * Kanidm returns errors in several shapes depending on the operation:
@@ -78,10 +66,6 @@ export function parseKanidmError(body: unknown, fallback: string): string {
 	}
 	return fallback;
 }
-
-// ---------------------------------------------------------------------------
-// Attrs builder
-// ---------------------------------------------------------------------------
 
 /**
  * Build a Kanidm attrs object from a plain record.
@@ -104,10 +88,6 @@ export function buildAttrs(
 	}
 	return attrs;
 }
-
-// ---------------------------------------------------------------------------
-// Response handler
-// ---------------------------------------------------------------------------
 
 /**
  * Handle a Kanidm API response uniformly:

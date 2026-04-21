@@ -1,20 +1,25 @@
 {
-  description = "A basic flake with a shell";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  inputs.systems.url = "github:nix-systems/default";
-  inputs.flake-utils = {
-    url = "github:numtide/flake-utils";
-    inputs.systems.follows = "systems";
+  description = "Kanidm OAuth2 Manager — web UI for managing Kanidm OAuth2 apps, groups, and users";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    systems.url = "github:nix-systems/default";
+    flake-utils = {
+      url = "github:numtide/flake-utils";
+      inputs.systems.follows = "systems";
+    };
   };
 
   outputs =
-    { nixpkgs, flake-utils, ... }:
+    { self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
+        packages.default = pkgs.callPackage ./nix/package.nix { };
+
         devShells.default = pkgs.mkShell {
           packages = [
             pkgs.bashInteractive
@@ -23,5 +28,8 @@
           ];
         };
       }
-    );
+    )
+    // {
+      nixosModules.default = import ./nix/module.nix;
+    };
 }
