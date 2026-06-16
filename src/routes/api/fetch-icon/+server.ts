@@ -1,6 +1,39 @@
 import dns from 'node:dns/promises';
 import type { RequestHandler } from '@sveltejs/kit';
 
+// Block the cloud metadata endpoint only - it has no legitimate use in any
+// network context and is the one target that could cause real harm if this
+// addon were ever deployed on a cloud VM. Everything else (RFC 1918, localhost,
+// HA bridge addresses) is intentionally reachable in homelab deployments.
+const BLOCKED_HOSTS = [
+	'169.254.169.254', // AWS/GCP/Azure IMDSv1 - cloud metadata credential theft
+	'fd00:ec2::254' //    AWS IMDSv6 equivalent
+];
+
+function isBlockedUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+
+		// Block non-HTTP(S) schemes - file://, ftp://, etc have no place here
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+			console.warn(`[fetch-icon] Blocked non-HTTP scheme: ${parsed.protocol} from ${url}`);
+			return true;
+		}
+
+		// Block cloud metadata endpoint - if you see this in logs, someone is
+		// either misconfigured or poking around. Either way, not happening.
+		if (BLOCKED_HOSTS.includes(parsed.hostname)) {
+			console.warn(`[fetch-icon] 🚨 BLOCKED request to cloud metadata endpoint: ${url}`);
+			console.warn(`[fetch-icon] 🚨 This is either a misconfiguration or a probe attempt.`);
+			return true;
+		}
+
+		return false;
+	} catch {
+		return true; // Unparseable URL - block it
+	}
+}
+
 const userAgent = 'Mozilla/5.0 (compatible; KanidmOAuth2Manager/1.0)';
 
 function isPrivateIp(ip: string): boolean {
@@ -23,6 +56,7 @@ async function isDomainPublic(hostname: string): Promise<boolean> {
 }
 
 async function tryFetchImage(url: string): Promise<Response | null> {
+	if (isBlockedUrl(url)) return null;
 	try {
 		const res = await fetch(url, { headers: { 'User-Agent': userAgent } });
 		const ct = res.headers.get('content-type') || '';
@@ -89,6 +123,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			fullUrl = origin; // may include a path like /auto-login
 		} catch {
 			return Response.json({ error: 'Invalid origin URL' }, { status: 400 });
+		}
+
+		if (isBlockedUrl(baseUrl)) {
+			return Response.json({ error: 'Origin not allowed' }, { status: 403 });
 		}
 
 		// 1. Try direct favicon paths

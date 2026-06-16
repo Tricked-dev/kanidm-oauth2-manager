@@ -2,11 +2,12 @@
 	import Oauth2Manager from '$lib/components/Oauth2Manager.svelte';
 	import GroupManager from '$lib/components/GroupManager.svelte';
 	import UserManager from '$lib/components/UserManager.svelte';
+	import ServiceAccountManager from '$lib/components/ServiceAccountManager.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
 
 	const { data } = $props();
 
-	let activeTab = $state<'oauth2' | 'groups' | 'users'>('oauth2');
+	let activeTab = $state<'oauth2' | 'groups' | 'users' | 'serviceaccounts'>('oauth2');
 	let notifications = $state<
 		Array<{ id: string; type: 'success' | 'error' | 'info'; message: string; timeout?: number }>
 	>([]);
@@ -118,6 +119,31 @@
 						<span class="badge badge-neutral badge-sm ml-2">{data.users.body.length}</span>
 					{/if}
 				</button>
+				<button
+					class="tab tab-lg {activeTab === 'serviceaccounts' ? 'tab-active' : ''}"
+					onclick={() => (activeTab = 'serviceaccounts')}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="mr-2 h-5 w-5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+						/>
+					</svg>
+					Service Accounts
+					{#if data.serviceAccounts?.body?.length}
+						<span class="badge badge-neutral badge-sm ml-2"
+							>{data.serviceAccounts.body.length}</span
+						>
+					{/if}
+				</button>
 			</div>
 		</div>
 	</div>
@@ -130,6 +156,8 @@
 			<GroupManager {data} {addNotification} />
 		{:else if activeTab === 'users'}
 			<UserManager {data} {addNotification} />
+		{:else if activeTab === 'serviceaccounts'}
+			<ServiceAccountManager {data} {addNotification} />
 		{/if}
 	</main>
 </div>

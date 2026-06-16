@@ -2,7 +2,7 @@
 
 <img width="1554" height="1312" alt="image" src="https://github.com/user-attachments/assets/4f3b4943-9900-46ad-9ded-07e99b32793b" />
 
-A comprehensive web-based management interface for [Kanidm](https://kanidm.com/) identity management system. This SvelteKit application provides an intuitive interface to manage OAuth2 applications, groups, and users in your Kanidm instance with advanced features like Unix extensions and SSH key management.
+A comprehensive web-based management interface for [Kanidm](https://kanidm.com/) identity management system. This SvelteKit application provides an intuitive interface to manage OAuth2 applications, groups, users, and service accounts in your Kanidm instance with advanced features like Unix extensions, SSH key management, and API token management.
 
 ## Features
 
@@ -29,6 +29,12 @@ A comprehensive web-based management interface for [Kanidm](https://kanidm.com/)
 - Unix extension support with UID, GID, home directory, and shell configuration
 - Password reset capabilities for Unix-enabled accounts
 - Credential status and update intent management
+
+### Service Account Management
+- Create and delete Kanidm service accounts
+- Manage service account group membership
+- Generate read-only or read-write API tokens with optional expiry
+- View and revoke existing service account API tokens
 
 ### General Features
 - Responsive design using Tailwind CSS and DaisyUI components
@@ -168,7 +174,7 @@ Bearer token authentication with a 5-minute token cache to optimize performance.
 - Ensure your Kanidm credentials are stored securely
 - Use environment variables or Docker secrets for sensitive configuration
 - The application requires administrative access to Kanidm for OAuth2
-  application management
+  application, group, user, and service account management
 - Consider running behind a reverse proxy with TLS termination
 
 ### Or just run it locally real quick

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { kaniRequest } from '../../utils';
+	import { base } from '$app/paths';
+	import { kaniRequest, parseKanidmError, buildAttrs, handleKaniResponse } from '../kanidm';
+	import { copyWithNotification } from '../../utils';
 	import ScopeMapModal from '$lib/modals/ScopeMapModal.svelte';
 	import ClaimMapModal from '$lib/modals/ClaimMapModal.svelte';
 	import ImageModal from '$lib/modals/ImageModal.svelte';
@@ -126,11 +128,7 @@
 			if (response.status === 200) {
 				addNotification('success', `Successfully uploaded image for ${appName}`);
 			} else {
-				let errorMessage = 'Failed to upload image';
-				if (response.body && typeof response.body === 'string') {
-					errorMessage = response.body;
-				}
-				addNotification('error', errorMessage);
+				addNotification('error', parseKanidmError(response.body, 'Failed to upload image'));
 			}
 		} catch (error) {
 			console.error(error);
@@ -154,7 +152,7 @@
 			addNotification('info', `Fetching favicon from ${baseUrl}...`);
 
 			// Use server-side API to fetch favicon (avoids CORS issues)
-			const response = await fetch('/api/fetch-icon', {
+			const response = await fetch(`${base}/api/fetch-icon`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -197,10 +195,9 @@
 			});
 
 			if (result.status === 200 && result.body) {
-				await navigator.clipboard.writeText(result.body);
-				addNotification('success', `Secret copied to clipboard for ${appName}`);
+				await copyWithNotification(result.body, `Secret copied to clipboard for ${appName}`, addNotification);
 			} else {
-				addNotification('error', 'Failed to fetch secret');
+				addNotification('error', parseKanidmError(result.body, 'Failed to fetch secret'));
 			}
 		} catch (error) {
 			console.error(error);
@@ -226,8 +223,8 @@
 				origin: app?.attrs?.oauth2_rs_origin_landing?.[0] || '',
 				redirectUrls:
 					app?.attrs?.oauth2_rs_origin
-						?.map((url) => url.trim())
-						?.filter((url) => url.length > 0)
+						?.map((url: string) => url.trim())
+						?.filter((url: string) => url.length > 0)
 						?.join('\n') || '',
 				secureCrypto: app?.attrs?.oauth2_jwt_legacy_crypto_enable?.[0] !== 'true',
 				requirePKCE: app?.attrs?.oauth2_allow_insecure_client_disable_pkce?.[0] !== 'true'
@@ -265,15 +262,7 @@
 			delete editValues[appName];
 			addNotification('success', `Successfully updated ${appName}`);
 		} else {
-			let errorMessage = 'Failed to update application';
-			if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to update application'));
 		}
 	}
 
@@ -310,19 +299,10 @@
 				type: 'basic'
 			};
 			addNotification('success', `Successfully created application: ${createValues.name}`);
-			await invalidateAll();
+		} else if (response.status === 409) {
+			addNotification('error', `Name "${createValues.name}" is already taken — choose a different name`);
 		} else {
-			let errorMessage = 'Failed to create application';
-			if (response.body && typeof response.body === 'string') {
-				errorMessage = response.body;
-			} else if (
-				response.body &&
-				typeof response.body === 'object' &&
-				'invalidattribute' in response.body
-			) {
-				errorMessage = response.body.invalidattribute as string;
-			}
-			addNotification('error', errorMessage);
+			addNotification('error', parseKanidmError(response.body, 'Failed to create application'));
 		}
 	}
 </script>
@@ -341,9 +321,9 @@
 				<h2 class="card-title">Create New OAuth2 Application</h2>
 
 				<div class="form-control">
-					<label class="label">
+					<div class="label">
 						<span class="label-text font-medium">Application Type</span>
-					</label>
+					</div>
 					<div class="flex gap-4">
 						<label class="label cursor-pointer">
 							<input
@@ -595,7 +575,7 @@
 									{#if app.attrs?.image?.length}
 										<div class="flex justify-center">
 											<img
-												src="/api/kani/image/{appName}"
+												src="{base}/api/kani/image/{appName}"
 												alt="Application logo"
 												class="border-base-300 h-16 w-16 rounded-lg border object-cover"
 											/>
